@@ -12,11 +12,47 @@ from rich.progress import track
 
 from spelling_words.apkg_manager import APKGBuilder
 from spelling_words.audio_processor import AudioProcessor
-from spelling_words.config import get_settings
+from spelling_words.config import Settings, get_settings
 from spelling_words.dictionary_client import MerriamWebsterClient
 from spelling_words.word_list import WordListManager
 
 console = Console()
+
+
+def configure_verbose_logging() -> None:
+    """Configure verbose debug logging."""
+    logger.remove()
+    logger.add(
+        lambda msg: console.print(msg, end="", markup=False, highlight=False),
+        level="DEBUG",
+        format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}",
+    )
+    console.print("[dim]Debug logging enabled[/dim]")
+
+
+def load_settings_or_abort() -> Settings:
+    """Load settings from .env file or abort with helpful error message."""
+    try:
+        return get_settings()
+    except ValidationError as e:
+        console.print("[bold red]Error:[/bold red] Missing configuration")
+        console.print("\nPlease ensure your .env file contains:")
+        console.print("  MW_ELEMENTARY_API_KEY=your-api-key-here\n")
+        console.print(f"Details: {e}")
+        raise click.Abort from e
+
+
+def validate_word_file(words_file: Path) -> None:
+    """Validate that the word file exists and is a file."""
+    if not words_file.exists():
+        console.print(f"[bold red]Error:[/bold red] Word file not found: {words_file}")
+        raise click.Abort
+
+    if not words_file.is_file():
+        console.print(
+            f"[bold red]Error:[/bold red] Path is not a file (it's a directory): {words_file}"
+        )
+        raise click.Abort
 
 
 @click.command()
@@ -57,36 +93,15 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
 
     # Configure logging level
     if verbose:
-        logger.remove()
-        logger.add(
-            lambda msg: console.print(msg, end="", markup=False, highlight=False),
-            level="DEBUG",
-            format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}",
-        )
-        console.print("[dim]Debug logging enabled[/dim]")
+        configure_verbose_logging()
 
     console.print("\n[bold blue]Spelling Words APKG Generator[/bold blue]\n")
 
     # Load settings
-    try:
-        settings = get_settings()
-    except ValidationError as e:
-        console.print("[bold red]Error:[/bold red] Missing configuration")
-        console.print("\nPlease ensure your .env file contains:")
-        console.print("  MW_ELEMENTARY_API_KEY=your-api-key-here\n")
-        console.print(f"Details: {e}")
-        raise click.Abort from e
+    settings = load_settings_or_abort()
 
     # Validate word file
-    if not words_file.exists():
-        console.print(f"[bold red]Error:[/bold red] Word file not found: {words_file}")
-        raise click.Abort
-
-    if not words_file.is_file():
-        console.print(
-            f"[bold red]Error:[/bold red] Path is not a file (it's a directory): {words_file}"
-        )
-        raise click.Abort
+    validate_word_file(words_file)
 
     # Initialize components
     console.print("[dim]Initializing components...[/dim]")
