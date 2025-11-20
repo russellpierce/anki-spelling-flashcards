@@ -16,23 +16,21 @@ Tests are the specification. A failing test means either:
 - The requirements have changed (requires user approval)
 """
 
+import re
 import sys
 
 from loguru import logger
+from spelling_words import configure_logging, install_exception_hook
 
 
 def test_logger_can_be_imported():
     """Test that we can import the logger from spelling_words."""
     # This will fail until we implement the module
-    from spelling_words import configure_logging
-
     assert configure_logging is not None
 
 
 def test_configure_logging_with_default_level(tmp_path):
     """Test that configure_logging sets up logger with INFO level by default."""
-    from spelling_words import configure_logging
-
     log_file = tmp_path / "test.log"
 
     # Remove existing handlers and configure
@@ -54,8 +52,6 @@ def test_configure_logging_with_default_level(tmp_path):
 
 def test_configure_logging_with_debug_level(tmp_path):
     """Test that configure_logging can be set to DEBUG level."""
-    from spelling_words import configure_logging
-
     log_file = tmp_path / "test.log"
 
     # Remove existing handlers and configure
@@ -76,8 +72,6 @@ def test_configure_logging_with_debug_level(tmp_path):
 
 def test_log_format_includes_timestamp(tmp_path):
     """Test that log format includes timestamp."""
-    from spelling_words import configure_logging
-
     log_file = tmp_path / "test.log"
 
     logger.remove()
@@ -89,16 +83,12 @@ def test_log_format_includes_timestamp(tmp_path):
 
     # Check for timestamp pattern (YYYY-MM-DD HH:MM:SS)
     # Loguru default format includes this
-    import re
-
     timestamp_pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"
     assert re.search(timestamp_pattern, log_content), "Log should contain timestamp"
 
 
 def test_log_format_includes_level(tmp_path):
     """Test that log format includes log level."""
-    from spelling_words import configure_logging
-
     log_file = tmp_path / "test.log"
 
     logger.remove()
@@ -118,8 +108,6 @@ def test_log_format_includes_level(tmp_path):
 
 def test_exception_hook_logs_uncaught_exceptions(tmp_path, capsys):
     """Test that uncaught exceptions are logged."""
-    from spelling_words import configure_logging, install_exception_hook
-
     log_file = tmp_path / "test.log"
 
     logger.remove()
@@ -146,8 +134,6 @@ def test_exception_hook_logs_uncaught_exceptions(tmp_path, capsys):
 
 def test_logger_outputs_to_stderr_by_default(capsys):
     """Test that logger outputs to stderr in addition to file."""
-    from spelling_words import configure_logging
-
     logger.remove()
     configure_logging(level="INFO")  # No log file, should use stderr
 
@@ -161,8 +147,6 @@ def test_logger_outputs_to_stderr_by_default(capsys):
 
 def test_configure_logging_can_be_called_multiple_times(tmp_path):
     """Test that configure_logging can be called multiple times without error."""
-    from spelling_words import configure_logging
-
     log_file = tmp_path / "test.log"
 
     # Should not raise an error when called multiple times
