@@ -76,7 +76,9 @@ class MerriamWebsterClient:
 
         for attempt in range(self.MAX_RETRIES):
             try:
-                logger.debug(f"Fetching word data for '{word}' (attempt {attempt + 1}/{self.MAX_RETRIES})")
+                logger.debug(
+                    f"Fetching word data for '{word}' (attempt {attempt + 1}/{self.MAX_RETRIES})"
+                )
                 response = self.session.get(url, params=params, timeout=10)
                 response.raise_for_status()
 
@@ -100,12 +102,15 @@ class MerriamWebsterClient:
                     )
                     time.sleep(delay)
                 else:
-                    logger.error(f"Failed to fetch '{word}' after {self.MAX_RETRIES} attempts", exc_info=True)
+                    logger.error(
+                        f"Failed to fetch '{word}' after {self.MAX_RETRIES} attempts", exc_info=True
+                    )
                     raise
 
             except requests.HTTPError:
                 logger.error(f"HTTP error fetching data for '{word}'", exc_info=True)
                 raise
+        return None
 
     def extract_definition(self, word_data: dict) -> str:
         """Extract the first definition from word data.
