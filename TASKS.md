@@ -18,7 +18,7 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 1. Project Setup
 
-**Status**: Setup complete except for ffmpeg (requires sudo) and API key configuration
+**Status**: Setup complete except for ffmpeg (requires sudo on user's machine)
 
 - [x] Verify `pyproject.toml` exists and has all required dependencies
 - [x] Verify `.pre-commit-config.yaml` exists and is configured
@@ -45,12 +45,13 @@ Create basic APKG files with audio and definitions for spelling test preparation
 - [x] Install pre-commit hooks: `uv run pre-commit install`
 - [x] Verify pre-commit hooks work: `uv run pre-commit run --all-files`
 - [x] Run setup verification script: `./scripts/verify_setup.sh`
-- [ ] **USER ACTION REQUIRED**: Configure MW_ELEMENTARY_API_KEY in `.env` file
+- [x] Configure MW_ELEMENTARY_API_KEY in `.env` file
+- [x] Enable LOCAL_TESTING=True in `.env` for cache persistence
 
 **Notes**:
 - Python 3.11 detected (3.12+ recommended but 3.11 should work)
 - All automated setup tasks completed
-- Remaining tasks require sudo access or API key
+- Only remaining task: ffmpeg installation (requires sudo access on user's machine)
 
 ### 2. Configuration Module (`spelling_words/config.py`)
 
