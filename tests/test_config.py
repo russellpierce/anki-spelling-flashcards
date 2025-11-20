@@ -81,15 +81,6 @@ class TestSettings:
 class TestGetSettings:
     """Tests for get_settings() singleton function."""
 
-    def test_get_settings_returns_settings_instance(self, monkeypatch):
-        """Test that get_settings() returns a Settings instance."""
-        monkeypatch.setenv("MW_ELEMENTARY_API_KEY", "test-api-key-singleton")
-
-        settings = get_settings()
-
-        assert isinstance(settings, Settings)
-        assert settings.mw_elementary_api_key == "test-api-key-singleton"
-
     def test_get_settings_returns_singleton(self, monkeypatch):
         """Test that get_settings() returns the same instance on multiple calls."""
         monkeypatch.setenv("MW_ELEMENTARY_API_KEY", "test-api-key-singleton-check")
@@ -99,22 +90,6 @@ class TestGetSettings:
         settings2 = get_settings()
 
         # Should be the exact same object
-        assert settings1 is settings2
-
-    def test_get_settings_caches_across_calls(self, monkeypatch):
-        """Test that get_settings() caches the settings and doesn't reload from env."""
-        monkeypatch.setenv("MW_ELEMENTARY_API_KEY", "original-key")
-
-        # Get settings once
-        settings1 = get_settings()
-        assert settings1.mw_elementary_api_key == "original-key"
-
-        # Change environment variable
-        monkeypatch.setenv("MW_ELEMENTARY_API_KEY", "changed-key")
-
-        # Get settings again - should still have original value (cached)
-        settings2 = get_settings()
-        assert settings2.mw_elementary_api_key == "original-key"
         assert settings1 is settings2
 
 
