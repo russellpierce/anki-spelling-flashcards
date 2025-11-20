@@ -56,22 +56,24 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 2. Configuration Module (`spelling_words/config.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (10/10)
+
 **Write tests FIRST** (`tests/test_config.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test Settings loads from .env correctly
-- [ ] Test Settings raises error when required API key missing
-- [ ] Test Settings uses default values for optional fields
-- [ ] Test get_settings() returns singleton
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test Settings loads from .env correctly
+- [x] Test Settings raises error when required API key missing
+- [x] Test Settings uses default values for optional fields
+- [x] Test get_settings() returns singleton
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Create `Settings` class inheriting from `pydantic_settings.BaseSettings`
-- [ ] Define fields:
-  - [ ] `mw_elementary_api_key: str` (required)
-  - [ ] `cache_dir: str = ".cache/"` (optional with default)
-- [ ] Configure to load from `.env` file: `model_config = SettingsConfigDict(env_file='.env')`
-- [ ] Create `get_settings()` function that returns singleton Settings instance
-- [ ] Settings will automatically validate and raise clear errors if required fields missing
+- [x] Create `Settings` class inheriting from `pydantic_settings.BaseSettings`
+- [x] Define fields:
+  - [x] `mw_elementary_api_key: str` (required)
+  - [x] `cache_dir: str = ".cache/"` (optional with default)
+- [x] Configure to load from `.env` file: `model_config = SettingsConfigDict(env_file='.env')`
+- [x] Create `get_settings()` function that returns singleton Settings instance
+- [x] Settings will automatically validate and raise clear errors if required fields missing
 
 ### 3. Logging Setup (`spelling_words/__init__.py`)
 
@@ -100,34 +102,38 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 4. Word List Manager (`spelling_words/word_list.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (16/16)
+
 **Write tests FIRST** (`tests/test_word_list.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test load_from_file() with valid word list
-- [ ] Test load_from_file() raises FileNotFoundError for missing file
-- [ ] Test load_from_file() handles encoding correctly
-- [ ] Test load_from_file() skips empty lines and strips whitespace
-- [ ] Test load_from_file() converts to lowercase
-- [ ] Test remove_duplicates() preserves order
-- [ ] Test remove_duplicates() logs count
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test load_from_file() with valid word list
+- [x] Test load_from_file() raises FileNotFoundError for missing file
+- [x] Test load_from_file() handles encoding correctly
+- [x] Test load_from_file() skips empty lines and strips whitespace
+- [x] Test load_from_file() converts to lowercase
+- [x] Test remove_duplicates() preserves order
+- [x] Test remove_duplicates() logs count
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Create `WordListManager` class
-- [ ] Implement `load_from_file(file_path: str) -> list[str]`:
-  - [ ] Read file with proper encoding handling
-  - [ ] Strip whitespace, skip empty lines
-  - [ ] Convert to lowercase
-  - [ ] Validate format (alphabetic + hyphens/apostrophes)
-  - [ ] Raise `FileNotFoundError` or `ValueError` as appropriate
-- [ ] Implement `remove_duplicates(words: list[str]) -> list[str]`:
-  - [ ] Use `dict.fromkeys()` to preserve order
-  - [ ] Log count of duplicates removed
-- [ ] Use loguru for all logging
+- [x] Create `WordListManager` class
+- [x] Implement `load_from_file(file_path: str) -> list[str]`:
+  - [x] Read file with proper encoding handling
+  - [x] Strip whitespace, skip empty lines
+  - [x] Convert to lowercase
+  - [x] Validate format (alphabetic + hyphens/apostrophes)
+  - [x] Raise `FileNotFoundError` or `ValueError` as appropriate
+- [x] Implement `remove_duplicates(words: list[str]) -> list[str]`:
+  - [x] Use `dict.fromkeys()` to preserve order
+  - [x] Log count of duplicates removed
+- [x] Use loguru for all logging
 
 ### 5. HTTP Session with Caching (`spelling_words/dictionary_client.py`)
 
-- [ ] Import `requests_cache`
-- [ ] Create cached session:
+**Status**: ✅ COMPLETE - Integrated into Dictionary Client and CLI
+
+- [x] Import `requests_cache`
+- [x] Create cached session:
   ```python
   session = requests_cache.CachedSession(
       'spelling_words_cache',
@@ -135,44 +141,56 @@ Create basic APKG files with audio and definitions for spelling test preparation
       expire_after=timedelta(days=30)
   )
   ```
-- [ ] Use this session for all HTTP requests (API and audio downloads)
-- [ ] Caching is automatic - no manual cache checking needed!
+- [x] Use this session for all HTTP requests (API and audio downloads)
+- [x] Caching is automatic - no manual cache checking needed!
+
+**Implementation notes**:
+- Session is passed to client classes as a dependency
+- Actual session creation happens in CLI module
+- Supports LOCAL_TESTING flag for cache behavior
 
 ### 6. Dictionary API Client (`spelling_words/dictionary_client.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (19/19)
+
 **Write tests FIRST** (`tests/test_dictionary_client.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test MerriamWebsterClient raises ValueError for empty API key
-- [ ] Test get_word_data() with mocked successful response
-- [ ] Test get_word_data() returns None for word not found
-- [ ] Test get_word_data() retries on timeout
-- [ ] Test extract_definition() parses valid data
-- [ ] Test extract_definition() raises ValueError for invalid data
-- [ ] Test extract_audio_urls() returns correct URLs
-- [ ] Test extract_audio_urls() returns empty list when no audio
-- [ ] Respect LOCAL_TESTING flag for cache persistence
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test MerriamWebsterClient raises ValueError for empty API key
+- [x] Test get_word_data() with mocked successful response
+- [x] Test get_word_data() returns None for word not found
+- [x] Test get_word_data() retries on timeout
+- [x] Test extract_definition() parses valid data
+- [x] Test extract_definition() raises ValueError for invalid data
+- [x] Test extract_audio_urls() returns correct URLs
+- [x] Test extract_audio_urls() returns empty list when no audio
+- [x] Respect LOCAL_TESTING flag for cache persistence
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Create `MerriamWebsterClient` class
-- [ ] `__init__(api_key: str, session: CachedSession)`:
-  - [ ] Validate API key is non-empty (raise `ValueError`)
-  - [ ] Store session and base URL
-- [ ] Implement `get_word_data(word: str) -> dict | None`:
-  - [ ] Make GET request using cached session (automatic caching!)
-  - [ ] URL: `f"https://dictionaryapi.com/api/v3/references/sd/json/{word}"`
-  - [ ] Timeout: 10 seconds
-  - [ ] Retry on `requests.Timeout` (max 3 attempts, exponential backoff)
-  - [ ] Return None if word not found (check for suggestions response)
-  - [ ] Use loguru for logging
-- [ ] Implement `extract_definition(word_data: dict) -> str`:
-  - [ ] Parse JSON structure for first definition
-  - [ ] Simplify for flashcard use
-  - [ ] Raise `ValueError` if no definition found
-- [ ] Implement `extract_audio_urls(word_data: dict) -> list[str]`:
-  - [ ] Parse JSON for audio references
-  - [ ] Build full URLs with proper subdirectory handling
-  - [ ] Return empty list if no audio
+- [x] Create `MerriamWebsterClient` class
+- [x] `__init__(api_key: str, session: CachedSession)`:
+  - [x] Validate API key is non-empty (raise `ValueError`)
+  - [x] Store session and base URL
+- [x] Implement `get_word_data(word: str) -> dict | None`:
+  - [x] Make GET request using cached session (automatic caching!)
+  - [x] URL: `f"https://dictionaryapi.com/api/v3/references/sd/json/{word}"`
+  - [x] Timeout: 10 seconds
+  - [x] Retry on `requests.Timeout` (max 3 attempts, exponential backoff)
+  - [x] Return None if word not found (check for suggestions response)
+  - [x] Use loguru for logging
+- [x] Implement `extract_definition(word_data: dict) -> str`:
+  - [x] Parse JSON structure for first definition
+  - [x] Simplify for flashcard use
+  - [x] Raise `ValueError` if no definition found
+- [x] Implement `extract_audio_urls(word_data: dict) -> list[str]`:
+  - [x] Parse JSON for audio references
+  - [x] Build full URLs with proper subdirectory handling
+  - [x] Return empty list if no audio
+
+**Implementation notes**:
+- Coverage: 96% (4 lines uncovered, mostly edge cases in subdirectory logic)
+- Implements exponential backoff for retries
+- Handles special MW API subdirectory rules (bix, gg, number)
 
 ### 7. Audio Processor (`spelling_words/audio_processor.py`)
 
