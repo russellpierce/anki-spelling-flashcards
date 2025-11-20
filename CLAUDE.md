@@ -34,7 +34,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #### Common uv Commands
 
 ```bash
-# Create virtual environment and install dependencies
+# Create virtual environment and install all dependencies (including dev)
+uv sync --all-extras
+
+# Create virtual environment and install only main dependencies
 uv sync
 
 # Add a new dependency

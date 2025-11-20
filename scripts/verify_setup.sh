@@ -149,10 +149,10 @@ if [ -d ".venv" ] || [ -d "venv" ]; then
     if uv run python -c "import click" 2>/dev/null; then
         success "Dependencies appear to be installed"
     else
-        warning "Dependencies may not be installed. Run: uv sync"
+        warning "Dependencies may not be installed. Run: uv sync --all-extras"
     fi
 else
-    warning "Virtual environment not found. Run: uv sync"
+    warning "Virtual environment not found. Run: uv sync --all-extras"
 fi
 echo ""
 
@@ -161,7 +161,7 @@ echo "8. Checking pre-commit hooks..."
 if [ -d ".git/hooks" ] && [ -f ".git/hooks/pre-commit" ]; then
     success "Pre-commit hooks are installed"
 else
-    warning "Pre-commit hooks not installed. Run: uv run pre-commit install"
+    warning "Pre-commit hooks not installed. Run: uv sync --all-extras && uv run pre-commit install"
 fi
 echo ""
 

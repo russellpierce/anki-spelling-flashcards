@@ -40,7 +40,7 @@ Create basic APKG files with audio and definitions for spelling test preparation
   └── fixtures/
       └── test_words.txt
   ```
-- [ ] Install dependencies: `uv sync`
+- [ ] Install dependencies: `uv sync --all-extras`
 - [ ] Verify system dependencies:
   - [ ] Check ffmpeg is installed: `ffmpeg -version`
 - [ ] Install pre-commit hooks: `uv run pre-commit install`
