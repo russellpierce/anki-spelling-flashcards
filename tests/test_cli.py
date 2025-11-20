@@ -53,9 +53,11 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
             patch("spelling_words.cli.process_words"),
             patch("spelling_words.cli.APKGBuilder") as mock_apkg,
         ):
+            mock_settings.return_value.mw_elementary_api_key = "test-key"
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
             result = runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
@@ -80,9 +82,11 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
             patch("spelling_words.cli.process_words"),
             patch("spelling_words.cli.APKGBuilder") as mock_apkg,
         ):
+            mock_settings.return_value.mw_elementary_api_key = "test-key"
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
             result = runner.invoke(main, ["-w", str(word_file), "-v"])
