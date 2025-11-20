@@ -194,46 +194,58 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 7. Audio Processor (`spelling_words/audio_processor.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (17/17)
+
 **Write tests FIRST** (`tests/test_audio_processor.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test download_audio() with mocked successful response
-- [ ] Test download_audio() retries on timeout
-- [ ] Test download_audio() validates Content-Type
-- [ ] Test process_audio() converts to MP3 correctly
-- [ ] Test process_audio() generates sanitized filename
-- [ ] Test process_audio() raises error for invalid audio
-- [ ] Respect LOCAL_TESTING flag for cache persistence
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test download_audio() with mocked successful response
+- [x] Test download_audio() retries on timeout
+- [x] Test download_audio() validates Content-Type
+- [x] Test process_audio() converts to MP3 correctly
+- [x] Test process_audio() generates sanitized filename
+- [x] Test process_audio() raises error for invalid audio
+- [x] Respect LOCAL_TESTING flag for cache persistence
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Create `AudioProcessor` class
-- [ ] Implement `download_audio(url: str, session: CachedSession) -> bytes | None`:
-  - [ ] Use cached session (automatic caching!)
-  - [ ] Retry on timeout (max 3 attempts)
-  - [ ] Validate Content-Type header
-  - [ ] Return bytes or None
-- [ ] Implement `process_audio(audio_bytes: bytes, word: str) -> tuple[str, bytes]`:
-  - [ ] Load with pydub `AudioSegment.from_file()`
-  - [ ] Convert to MP3 with 128k bitrate
-  - [ ] Generate sanitized filename: `f"{word.replace(' ', '_')}.mp3"`
-  - [ ] Return (filename, mp3_bytes)
-  - [ ] Catch `pydub.exceptions.CouldntDecodeError` and raise specific error
+- [x] Create `AudioProcessor` class
+- [x] Implement `download_audio(url: str, session: CachedSession) -> bytes | None`:
+  - [x] Use cached session (automatic caching!)
+  - [x] Retry on timeout (max 3 attempts)
+  - [x] Validate Content-Type header
+  - [x] Return bytes or None
+- [x] Implement `process_audio(audio_bytes: bytes, word: str) -> tuple[str, bytes]`:
+  - [x] Load with pydub `AudioSegment.from_file()`
+  - [x] Convert to MP3 with 128k bitrate
+  - [x] Generate sanitized filename: `f"{word.replace(' ', '_')}.mp3"`
+  - [x] Return (filename, mp3_bytes)
+  - [x] Catch `pydub.exceptions.CouldntDecodeError` and raise specific error
+
+**Implementation notes**:
+- Coverage: 100% (54/54 lines covered)
+- Includes comprehensive error handling with retry logic
+- Validates Content-Type headers to ensure audio files
+- Supports multiple audio formats (mp3, wav, ogg)
+- Exponential backoff for retries (1s, 2s intervals)
+- Returns None for 404 errors, raises for other HTTP errors
 
 ### 8. APKG Manager (`spelling_words/apkg_manager.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (23/23)
+
 **Write tests FIRST** (`tests/test_apkg_manager.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test create_deck() creates valid deck
-- [ ] Test create_note() with all fields
-- [ ] Test create_note() validates inputs
-- [ ] Test package_apkg() creates valid APKG file
-- [ ] Test package_apkg() includes media files
-- [ ] Test generated APKG can be loaded by genanki
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test create_deck() creates valid deck
+- [x] Test create_note() with all fields
+- [x] Test create_note() validates inputs
+- [x] Test package_apkg() creates valid APKG file
+- [x] Test package_apkg() includes media files
+- [x] Test generated APKG can be loaded by genanki
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Import genanki
-- [ ] Create Anki Model for spelling cards:
+- [x] Import genanki
+- [x] Create Anki Model for spelling cards:
   ```python
   SPELLING_MODEL = genanki.Model(
       1607392319,  # Random model ID
@@ -251,18 +263,27 @@ Create basic APKG files with audio and definitions for spelling test preparation
           },
       ])
   ```
-- [ ] Create `APKGBuilder` class:
-  - [ ] `__init__(deck_name: str, output_path: str)`:
-    - [ ] Create `genanki.Deck` instance
-    - [ ] Initialize media files list
-  - [ ] `add_word(word: str, definition: str, audio_filename: str, audio_data: bytes)`:
-    - [ ] Create `genanki.Note` with SPELLING_MODEL
-    - [ ] Add to deck
-    - [ ] Track media file
-  - [ ] `build()`:
-    - [ ] Create `genanki.Package` with deck and media files
-    - [ ] Call `package.write_to_file(output_path)`
-    - [ ] That's it! genanki handles everything else.
+- [x] Create `APKGBuilder` class:
+  - [x] `__init__(deck_name: str, output_path: str)`:
+    - [x] Create `genanki.Deck` instance
+    - [x] Initialize media files list
+  - [x] `add_word(word: str, definition: str, audio_filename: str, audio_data: bytes)`:
+    - [x] Create `genanki.Note` with SPELLING_MODEL
+    - [x] Add to deck
+    - [x] Track media file
+  - [x] `build()`:
+    - [x] Create `genanki.Package` with deck and media files
+    - [x] Call `package.write_to_file(output_path)`
+    - [x] That's it! genanki handles everything else.
+
+**Implementation notes**:
+- Coverage: 100% (60/60 lines covered)
+- Uses genanki library to handle APKG file creation
+- Validates all inputs (word, definition, audio filename, audio data)
+- Supports MP3, OGG, and WAV audio formats
+- Creates parent directories automatically if they don't exist
+- Uses temporary directory for media file handling
+- Card template: Front shows audio + definition, back shows word
 
 ### 9. Command-Line Interface (`spelling_words/cli.py`)
 
