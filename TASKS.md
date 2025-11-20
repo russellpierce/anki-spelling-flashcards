@@ -18,8 +18,13 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 1. Project Setup
 
-- [ ] Initialize project with uv (`uv init`)
-- [ ] Create project structure:
+**Status**: Many items already complete (pyproject.toml, .pre-commit-config.yaml, .gitignore, README_LLM.md exist)
+
+- [ ] Verify `pyproject.toml` exists and has all required dependencies ✅
+- [ ] Verify `.pre-commit-config.yaml` exists and is configured ✅
+- [ ] Verify `.gitignore` includes necessary patterns ✅
+- [ ] Verify ffmpeg is documented in README_LLM.md ✅
+- [ ] Create project directory structure:
   ```
   spelling_words/
   ├── __init__.py
@@ -31,18 +36,16 @@ Create basic APKG files with audio and definitions for spelling test preparation
   ├── audio_processor.py
   └── apkg_manager.py
   tests/
+  ├── __init__.py
   └── fixtures/
       └── test_words.txt
   ```
-- [ ] Set up `pyproject.toml` with dependencies:
-  - Core: `genanki`, `requests-cache`, `pydantic-settings`, `click`, `rich`, `loguru`, `pydub`, `requests`
-  - Dev: `pytest`, `pytest-cov`, `ruff`, `pre-commit`
-- [ ] Configure CLI entry point in `pyproject.toml`
-- [ ] Configure ruff settings in `pyproject.toml` (linting rules, formatting)
-- [ ] Create `.pre-commit-config.yaml` with ruff hooks
+- [ ] Install dependencies: `uv sync`
+- [ ] Verify system dependencies:
+  - [ ] Check ffmpeg is installed: `ffmpeg -version`
 - [ ] Install pre-commit hooks: `uv run pre-commit install`
-- [ ] Update `.gitignore` (already includes `.env`)
-- [ ] Verify ffmpeg is documented in README_LLM.md
+- [ ] Verify pre-commit hooks work: `uv run pre-commit run --all-files`
+- [ ] Run setup verification script: `./scripts/verify_setup.sh`
 
 ### 2. Configuration Module (`spelling_words/config.py`)
 

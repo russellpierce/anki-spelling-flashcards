@@ -5,7 +5,7 @@ description = "Generate Anki flashcard decks for spelling test preparation"
 readme = "README_LLM.md"
 requires-python = ">=3.12"
 dependencies = [
-    "genanki>=2.1.0",
+    "genanki>=0.13.0",
     "requests-cache>=1.2.0",
     "pydantic-settings>=2.0.0",
     "click>=8.1.0",
