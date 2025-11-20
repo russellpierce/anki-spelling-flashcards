@@ -287,53 +287,67 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 9. Command-Line Interface (`spelling_words/cli.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (17/17)
+
 **Write tests FIRST** (`tests/test_cli.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test CLI accepts word list file argument
-- [ ] Test CLI accepts output APKG filename
-- [ ] Test CLI handles --verbose flag
-- [ ] Test CLI validates inputs
-- [ ] Test CLI error handling
-- [ ] Use click.testing.CliRunner for testing
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test CLI accepts word list file argument
+- [x] Test CLI accepts output APKG filename
+- [x] Test CLI handles --verbose flag
+- [x] Test CLI validates inputs
+- [x] Test CLI error handling
+- [x] Use click.testing.CliRunner for testing
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Use `@click.command()` decorator pattern
-- [ ] Define options:
-  - [ ] `@click.option('--words', '-w', required=True, help='Path to word list file')`
-  - [ ] `@click.option('--output', '-o', default='output.apkg', help='Output APKG path')`
-  - [ ] `@click.option('--verbose', '-v', is_flag=True, help='Enable debug logging')`
-- [ ] Implement main workflow:
-  - [ ] Load settings with `get_settings()`
-  - [ ] Configure loguru log level based on --verbose
-  - [ ] Create cached session with requests_cache
-  - [ ] Initialize components (WordListManager, MerriamWebsterClient, AudioProcessor, APKGBuilder)
-  - [ ] Load and deduplicate word list
-  - [ ] Use `rich.progress.track()` for progress bar:
+- [x] Use `@click.command()` decorator pattern
+- [x] Define options:
+  - [x] `@click.option('--words', '-w', required=True, help='Path to word list file')`
+  - [x] `@click.option('--output', '-o', default='output.apkg', help='Output APKG path')`
+  - [x] `@click.option('--verbose', '-v', is_flag=True, help='Enable debug logging')`
+- [x] Implement main workflow:
+  - [x] Load settings with `get_settings()`
+  - [x] Configure loguru log level based on --verbose
+  - [x] Create cached session with requests_cache
+  - [x] Initialize components (WordListManager, MerriamWebsterClient, AudioProcessor, APKGBuilder)
+  - [x] Load and deduplicate word list
+  - [x] Use `rich.progress.track()` for progress bar:
     ```python
     from rich.progress import track
     for word in track(words, description="Processing words..."):
         # process word
     ```
-  - [ ] For each word (with error handling):
-    - [ ] Fetch word data
-    - [ ] Extract definition and audio URLs
-    - [ ] Download and process first audio
-    - [ ] Add to APKG builder
-    - [ ] Use `try/except` to log and skip failures
-  - [ ] Build APKG file
-  - [ ] Use `rich.console.Console()` to print summary with colors
-- [ ] Handle missing .env with friendly error message
+  - [x] For each word (with error handling):
+    - [x] Fetch word data
+    - [x] Extract definition and audio URLs
+    - [x] Download and process first audio
+    - [x] Add to APKG builder
+    - [x] Use `try/except` to log and skip failures
+  - [x] Build APKG file
+  - [x] Use `rich.console.Console()` to print summary with colors
+- [x] Handle missing .env with friendly error message
+
+**Implementation notes**:
+- Coverage: 79% (90/114 lines covered)
+- Uses click for CLI framework with decorator pattern
+- Uses rich for progress bars and colored console output
+- Orchestrates all components (config, word list, dictionary, audio, APKG)
+- Creates cached HTTP session for API calls (30-day cache)
+- Displays processing summary with success/skip/fail counts
+- Graceful error handling for missing words, audio, or API failures
+- Verbose mode enables debug logging for troubleshooting
 
 ### 10. Package Entry Points
 
-- [ ] `spelling_words/__init__.py`:
-  - [ ] Set `__version__ = "0.1.0"`
-  - [ ] Configure loguru
-  - [ ] Export main classes
-- [ ] `spelling_words/__main__.py`:
-  - [ ] Import and call CLI main function
-  - [ ] Enables `python -m spelling_words`
+**Status**: ✅ COMPLETE
+
+- [x] `spelling_words/__init__.py`:
+  - [x] Set `__version__ = "0.1.0"`
+  - [x] Configure loguru
+  - [x] Export main classes
+- [x] `spelling_words/__main__.py`:
+  - [x] Import and call CLI main function
+  - [x] Enables `python -m spelling_words`
 
 ### 11. Testing and Validation
 
