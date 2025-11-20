@@ -194,30 +194,40 @@ Create basic APKG files with audio and definitions for spelling test preparation
 
 ### 7. Audio Processor (`spelling_words/audio_processor.py`)
 
+**Status**: ✅ COMPLETE - All tests passing (17/17)
+
 **Write tests FIRST** (`tests/test_audio_processor.py`):
-- [ ] Create test file with TEST INTEGRITY directive at top
-- [ ] Test download_audio() with mocked successful response
-- [ ] Test download_audio() retries on timeout
-- [ ] Test download_audio() validates Content-Type
-- [ ] Test process_audio() converts to MP3 correctly
-- [ ] Test process_audio() generates sanitized filename
-- [ ] Test process_audio() raises error for invalid audio
-- [ ] Respect LOCAL_TESTING flag for cache persistence
-- [ ] Run tests to verify they fail (red)
+- [x] Create test file with TEST INTEGRITY directive at top
+- [x] Test download_audio() with mocked successful response
+- [x] Test download_audio() retries on timeout
+- [x] Test download_audio() validates Content-Type
+- [x] Test process_audio() converts to MP3 correctly
+- [x] Test process_audio() generates sanitized filename
+- [x] Test process_audio() raises error for invalid audio
+- [x] Respect LOCAL_TESTING flag for cache persistence
+- [x] Run tests to verify they fail (red)
 
 **Then implement**:
-- [ ] Create `AudioProcessor` class
-- [ ] Implement `download_audio(url: str, session: CachedSession) -> bytes | None`:
-  - [ ] Use cached session (automatic caching!)
-  - [ ] Retry on timeout (max 3 attempts)
-  - [ ] Validate Content-Type header
-  - [ ] Return bytes or None
-- [ ] Implement `process_audio(audio_bytes: bytes, word: str) -> tuple[str, bytes]`:
-  - [ ] Load with pydub `AudioSegment.from_file()`
-  - [ ] Convert to MP3 with 128k bitrate
-  - [ ] Generate sanitized filename: `f"{word.replace(' ', '_')}.mp3"`
-  - [ ] Return (filename, mp3_bytes)
-  - [ ] Catch `pydub.exceptions.CouldntDecodeError` and raise specific error
+- [x] Create `AudioProcessor` class
+- [x] Implement `download_audio(url: str, session: CachedSession) -> bytes | None`:
+  - [x] Use cached session (automatic caching!)
+  - [x] Retry on timeout (max 3 attempts)
+  - [x] Validate Content-Type header
+  - [x] Return bytes or None
+- [x] Implement `process_audio(audio_bytes: bytes, word: str) -> tuple[str, bytes]`:
+  - [x] Load with pydub `AudioSegment.from_file()`
+  - [x] Convert to MP3 with 128k bitrate
+  - [x] Generate sanitized filename: `f"{word.replace(' ', '_')}.mp3"`
+  - [x] Return (filename, mp3_bytes)
+  - [x] Catch `pydub.exceptions.CouldntDecodeError` and raise specific error
+
+**Implementation notes**:
+- Coverage: 100% (54/54 lines covered)
+- Includes comprehensive error handling with retry logic
+- Validates Content-Type headers to ensure audio files
+- Supports multiple audio formats (mp3, wav, ogg)
+- Exponential backoff for retries (1s, 2s intervals)
+- Returns None for 404 errors, raises for other HTTP errors
 
 ### 8. APKG Manager (`spelling_words/apkg_manager.py`)
 

@@ -11,9 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 from requests_cache import CachedSession
-
 from spelling_words.dictionary_client import MerriamWebsterClient
-
 
 # Sample API responses based on Merriam-Webster API structure
 SAMPLE_WORD_DATA = [

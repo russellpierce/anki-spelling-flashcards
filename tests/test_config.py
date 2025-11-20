@@ -10,13 +10,9 @@ When a test fails:
 4. WAIT - Get explicit user approval before modifying tests
 """
 
-import os
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
-
 from spelling_words.config import Settings, get_settings
 
 
