@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 from pydantic import ValidationError
-from spelling_words.cli import main
+from spelling_words.cli import main, write_missing_words_file
 
 
 class TestCLIBasics:
@@ -351,3 +351,293 @@ class TestCLIOutput:
             # Verify logger was configured for debug
             # (exact verification depends on implementation)
             assert mock_logger.remove.called or mock_logger.add.called
+
+
+class TestCollegiateFallback:
+    """Tests for collegiate dictionary fallback functionality."""
+
+    def test_cli_initializes_collegiate_client_when_api_key_configured(self, tmp_path):
+        """Test that CLI initializes collegiate client when API key is present."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_elementary,
+            patch("spelling_words.cli.MerriamWebsterCollegiateClient") as mock_collegiate,
+            patch("spelling_words.cli.process_words"),
+        ):
+            # Configure both API keys
+            mock_settings.return_value.mw_elementary_api_key = "elementary-key"
+            mock_settings.return_value.mw_collegiate_api_key = "collegiate-key"
+
+            runner.invoke(main, ["-w", str(word_file)])
+
+            # Both clients should be initialized
+            assert mock_elementary.called
+            assert mock_collegiate.called
+
+    def test_cli_skips_collegiate_client_when_api_key_not_configured(self, tmp_path):
+        """Test that CLI skips collegiate client when API key is None."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_elementary,
+            patch("spelling_words.cli.MerriamWebsterCollegiateClient") as mock_collegiate,
+            patch("spelling_words.cli.process_words"),
+        ):
+            # Only elementary API key configured
+            mock_settings.return_value.mw_elementary_api_key = "elementary-key"
+            mock_settings.return_value.mw_collegiate_api_key = None
+
+            runner.invoke(main, ["-w", str(word_file)])
+
+            # Only elementary client should be initialized
+            assert mock_elementary.called
+            assert not mock_collegiate.called
+
+    def test_fallback_to_collegiate_when_word_not_found_in_elementary(self, tmp_path):
+        """Test that process_words falls back to collegiate when word not found."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("obscureword\n")
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.WordListManager") as mock_manager,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_elementary,
+            patch("spelling_words.cli.MerriamWebsterCollegiateClient") as mock_collegiate,
+            patch("spelling_words.cli.AudioProcessor") as mock_audio,
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+            patch("spelling_words.cli.requests_cache.CachedSession"),
+        ):
+            # Configure both API keys
+            mock_settings.return_value.mw_elementary_api_key = "elementary-key"
+            mock_settings.return_value.mw_collegiate_api_key = "collegiate-key"
+
+            mock_manager.return_value.load_from_file.return_value = ["obscureword"]
+            mock_manager.return_value.remove_duplicates.return_value = ["obscureword"]
+
+            # Elementary returns None, collegiate returns data
+            mock_elementary.return_value.get_word_data.return_value = None
+            mock_collegiate.return_value.get_word_data.return_value = {"word": "obscureword"}
+            mock_collegiate.return_value.extract_definition.return_value = "definition"
+            mock_collegiate.return_value.extract_audio_urls.return_value = [
+                "http://example.com/audio.mp3"
+            ]
+
+            mock_audio.return_value.download_audio.return_value = b"audio"
+            mock_audio.return_value.process_audio.return_value = ("word.mp3", b"audio")
+
+            # Mock the deck to have notes (word was successfully added)
+            mock_apkg.return_value.deck.notes = [Mock()]
+
+            result = runner.invoke(main, ["-w", str(word_file)])
+
+            # Word should be successfully processed using collegiate fallback
+            assert result.exit_code == 0
+            mock_apkg.return_value.build.assert_called_once()
+
+    def test_fallback_to_collegiate_when_audio_not_found_in_elementary(self, tmp_path):
+        """Test that process_words falls back to collegiate for missing audio."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.WordListManager") as mock_manager,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_elementary,
+            patch("spelling_words.cli.MerriamWebsterCollegiateClient") as mock_collegiate,
+            patch("spelling_words.cli.AudioProcessor") as mock_audio,
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+            patch("spelling_words.cli.requests_cache.CachedSession"),
+        ):
+            # Configure both API keys
+            mock_settings.return_value.mw_elementary_api_key = "elementary-key"
+            mock_settings.return_value.mw_collegiate_api_key = "collegiate-key"
+
+            mock_manager.return_value.load_from_file.return_value = ["test"]
+            mock_manager.return_value.remove_duplicates.return_value = ["test"]
+
+            # Elementary has definition but no audio
+            elementary_data = {"word": "test"}
+            mock_elementary.return_value.get_word_data.return_value = elementary_data
+            mock_elementary.return_value.extract_definition.return_value = "definition"
+            mock_elementary.return_value.extract_audio_urls.return_value = []
+
+            # Collegiate has audio
+            collegiate_data = {"word": "test"}
+            mock_collegiate.return_value.get_word_data.return_value = collegiate_data
+            mock_collegiate.return_value.extract_audio_urls.return_value = [
+                "http://example.com/audio.mp3"
+            ]
+
+            mock_audio.return_value.download_audio.return_value = b"audio"
+            mock_audio.return_value.process_audio.return_value = ("test.mp3", b"audio")
+
+            # Mock the deck to have notes
+            mock_apkg.return_value.deck.notes = [Mock()]
+
+            result = runner.invoke(main, ["-w", str(word_file)])
+
+            # Word should be successfully processed with collegiate audio
+            assert result.exit_code == 0
+            mock_apkg.return_value.build.assert_called_once()
+
+
+class TestMissingWordsFile:
+    """Tests for missing words file generation."""
+
+    def test_write_missing_words_file_creates_file(self, tmp_path):
+        """Test that write_missing_words_file creates a file with correct name."""
+        output_file = tmp_path / "test.apkg"
+        missing_words = [
+            {"word": "test", "reason": "Word not found", "attempted": "Elementary Dictionary"}
+        ]
+
+        write_missing_words_file(output_file, missing_words)
+
+        missing_file = tmp_path / "test-missing.txt"
+        assert missing_file.exists()
+
+    def test_write_missing_words_file_contains_header(self, tmp_path):
+        """Test that missing words file contains proper header."""
+        output_file = tmp_path / "test.apkg"
+        missing_words = [
+            {"word": "test", "reason": "Word not found", "attempted": "Elementary Dictionary"}
+        ]
+
+        write_missing_words_file(output_file, missing_words)
+
+        missing_file = tmp_path / "test-missing.txt"
+        content = missing_file.read_text()
+
+        assert "Spelling Words - Missing/Incomplete Words Report" in content
+        assert "Generated:" in content
+        assert "APKG:" in content
+
+    def test_write_missing_words_file_contains_word_details(self, tmp_path):
+        """Test that missing words file contains word details."""
+        output_file = tmp_path / "test.apkg"
+        missing_words = [
+            {
+                "word": "obscureword",
+                "reason": "Word not found in either dictionary",
+                "attempted": "Elementary Dictionary, Collegiate Dictionary",
+            }
+        ]
+
+        write_missing_words_file(output_file, missing_words)
+
+        missing_file = tmp_path / "test-missing.txt"
+        content = missing_file.read_text()
+
+        assert "obscureword" in content
+        assert "Word not found in either dictionary" in content
+        assert "Elementary Dictionary, Collegiate Dictionary" in content
+
+    def test_write_missing_words_file_contains_count(self, tmp_path):
+        """Test that missing words file contains total count."""
+        output_file = tmp_path / "test.apkg"
+        missing_words = [
+            {"word": "word1", "reason": "No audio", "attempted": "Elementary Dictionary"},
+            {"word": "word2", "reason": "No definition", "attempted": "Elementary Dictionary"},
+            {"word": "word3", "reason": "Not found", "attempted": "Elementary Dictionary"},
+        ]
+
+        write_missing_words_file(output_file, missing_words)
+
+        missing_file = tmp_path / "test-missing.txt"
+        content = missing_file.read_text()
+
+        assert "Total missing: 3 words" in content
+
+    def test_cli_creates_missing_file_when_words_skipped(self, tmp_path):
+        """Test that CLI creates missing words file when some words are skipped."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("goodword\nbadword\n")
+        output_file = tmp_path / "output.apkg"
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.WordListManager") as mock_manager,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_client,
+            patch("spelling_words.cli.AudioProcessor") as mock_audio,
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+            patch("spelling_words.cli.requests_cache.CachedSession"),
+        ):
+            mock_settings.return_value.mw_elementary_api_key = "test-key"
+            mock_settings.return_value.mw_collegiate_api_key = None
+
+            mock_manager.return_value.load_from_file.return_value = ["goodword", "badword"]
+            mock_manager.return_value.remove_duplicates.return_value = ["goodword", "badword"]
+
+            # goodword succeeds, badword fails
+            def get_word_data_side_effect(word):
+                return {"word": word} if word == "goodword" else None
+
+            mock_client.return_value.get_word_data.side_effect = get_word_data_side_effect
+            mock_client.return_value.extract_definition.return_value = "definition"
+            mock_client.return_value.extract_audio_urls.return_value = [
+                "http://example.com/audio.mp3"
+            ]
+
+            mock_audio.return_value.download_audio.return_value = b"audio"
+            mock_audio.return_value.process_audio.return_value = ("word.mp3", b"audio")
+
+            # Mock the deck to have one note
+            mock_apkg.return_value.deck.notes = [Mock()]
+
+            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+
+            # Missing words file should be created
+            missing_file = tmp_path / "output-missing.txt"
+            assert missing_file.exists()
+
+            content = missing_file.read_text()
+            assert "badword" in content
+
+    def test_cli_does_not_create_missing_file_when_all_words_succeed(self, tmp_path):
+        """Test that CLI does not create missing file when all words succeed."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("goodword\n")
+        output_file = tmp_path / "output.apkg"
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.WordListManager") as mock_manager,
+            patch("spelling_words.cli.MerriamWebsterClient") as mock_client,
+            patch("spelling_words.cli.AudioProcessor") as mock_audio,
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+            patch("spelling_words.cli.requests_cache.CachedSession"),
+        ):
+            mock_settings.return_value.mw_elementary_api_key = "test-key"
+            mock_settings.return_value.mw_collegiate_api_key = None
+
+            mock_manager.return_value.load_from_file.return_value = ["goodword"]
+            mock_manager.return_value.remove_duplicates.return_value = ["goodword"]
+
+            mock_client.return_value.get_word_data.return_value = {"word": "goodword"}
+            mock_client.return_value.extract_definition.return_value = "definition"
+            mock_client.return_value.extract_audio_urls.return_value = [
+                "http://example.com/audio.mp3"
+            ]
+
+            mock_audio.return_value.download_audio.return_value = b"audio"
+            mock_audio.return_value.process_audio.return_value = ("word.mp3", b"audio")
+
+            # Mock the deck to have one note
+            mock_apkg.return_value.deck.notes = [Mock()]
+
+            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+
+            # Missing words file should NOT be created
+            missing_file = tmp_path / "output-missing.txt"
+            assert not missing_file.exists()

@@ -19,12 +19,18 @@ class Settings(BaseSettings):
 
     Attributes:
         mw_elementary_api_key: Merriam-Webster Elementary Dictionary API key (required)
+        mw_collegiate_api_key: Merriam-Webster Collegiate Dictionary API key (optional fallback)
         cache_dir: Directory for caching HTTP responses and audio files (default: .cache/)
     """
 
     mw_elementary_api_key: str = Field(
         ...,
         description="Merriam-Webster Elementary Dictionary API key",
+    )
+
+    mw_collegiate_api_key: str | None = Field(
+        default=None,
+        description="Merriam-Webster Collegiate Dictionary API key (optional fallback)",
     )
 
     cache_dir: str = Field(
