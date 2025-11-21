@@ -1,7 +1,8 @@
-"""Dictionary API Client for Merriam-Webster Elementary Dictionary.
+"""Dictionary API Client for Merriam-Webster Dictionaries.
 
-This module provides a client for fetching word definitions and audio URLs
-from the Merriam-Webster Elementary Dictionary API with automatic HTTP caching.
+This module provides clients for fetching word definitions and audio URLs
+from the Merriam-Webster Elementary and Collegiate Dictionary APIs with
+automatic HTTP caching.
 """
 
 import time
@@ -217,3 +218,22 @@ class MerriamWebsterClient:
         if audio_file[0].isdigit() or not audio_file[0].isalpha():
             return "number"
         return audio_file[0]
+
+
+class MerriamWebsterCollegiateClient(MerriamWebsterClient):
+    """Client for Merriam-Webster Collegiate Dictionary API.
+
+    This client is identical to the Elementary Dictionary client except for the
+    API endpoint. The JSON response format is the same, so all extraction methods
+    are inherited without modification.
+
+    This is typically used as a fallback when words or audio are not found in the
+    Elementary Dictionary.
+
+    Attributes:
+        api_key: Merriam-Webster API key
+        session: Cached HTTP session for making requests
+        base_url: Base URL for the Merriam-Webster Collegiate Dictionary API
+    """
+
+    BASE_URL = "https://dictionaryapi.com/api/v3/references/collegiate/json"

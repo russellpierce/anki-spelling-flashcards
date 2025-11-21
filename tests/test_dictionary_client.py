@@ -11,7 +11,10 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 from requests_cache import CachedSession
-from spelling_words.dictionary_client import MerriamWebsterClient
+from spelling_words.dictionary_client import (
+    MerriamWebsterClient,
+    MerriamWebsterCollegiateClient,
+)
 
 # Sample API responses based on Merriam-Webster API structure
 SAMPLE_WORD_DATA = [
@@ -285,3 +288,60 @@ class TestCacheIntegration:
     def test_cache_respects_local_testing_true(self):
         """Test that cache is configured for full persistence when LOCAL_TESTING=True."""
         assert os.getenv("LOCAL_TESTING") == "True"
+
+
+class TestMerriamWebsterCollegiateClient:
+    """Tests for MerriamWebsterCollegiateClient."""
+
+    def test_collegiate_client_has_correct_base_url(self):
+        """Test that collegiate client uses the correct API endpoint."""
+        assert (
+            MerriamWebsterCollegiateClient.BASE_URL
+            == "https://dictionaryapi.com/api/v3/references/collegiate/json"
+        )
+
+    def test_collegiate_client_inherits_from_elementary(self):
+        """Test that collegiate client inherits from MerriamWebsterClient."""
+        assert issubclass(MerriamWebsterCollegiateClient, MerriamWebsterClient)
+
+    def test_collegiate_client_initialization(self):
+        """Test that collegiate client can be initialized."""
+        session = CachedSession()
+        client = MerriamWebsterCollegiateClient("test-api-key", session)
+        assert client.api_key == "test-api-key"
+        assert client.session is session
+
+    def test_collegiate_client_get_word_data(self):
+        """Test that collegiate client can fetch word data."""
+        session = Mock(spec=CachedSession)
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = SAMPLE_WORD_DATA
+        session.get.return_value = mock_response
+
+        client = MerriamWebsterCollegiateClient("test-api-key", session)
+        result = client.get_word_data("test")
+
+        assert result == SAMPLE_WORD_DATA
+        # Verify it uses the collegiate URL
+        call_args = session.get.call_args
+        assert "collegiate" in call_args[0][0]
+
+    def test_collegiate_client_extract_definition(self):
+        """Test that collegiate client inherits definition extraction."""
+        session = Mock(spec=CachedSession)
+        client = MerriamWebsterCollegiateClient("test-api-key", session)
+
+        definition = client.extract_definition(SAMPLE_WORD_DATA)
+
+        assert definition == "a procedure intended to establish quality or performance"
+
+    def test_collegiate_client_extract_audio_urls(self):
+        """Test that collegiate client inherits audio URL extraction."""
+        session = Mock(spec=CachedSession)
+        client = MerriamWebsterCollegiateClient("test-api-key", session)
+
+        urls = client.extract_audio_urls(SAMPLE_WORD_DATA)
+
+        assert len(urls) == 1
+        assert "test001" in urls[0]

@@ -22,8 +22,8 @@ SPELLING_MODEL = genanki.Model(
     templates=[
         {
             "name": "Spelling Card",
-            "qfmt": "{{Audio}}<br><br>{{Definition}}",  # Front: Audio + Definition
-            "afmt": "{{FrontSide}}<hr id='answer'>{{Word}}",  # Back: Word
+            "qfmt": "{{Audio}}<br><br>definition: {{Definition}}",  # Front: Audio + Definition
+            "afmt": "{{FrontSide}}<hr id='answer'><h1>{{Word}}</h1>",  # Back: Word
         }
     ],
 )
