@@ -2,6 +2,19 @@
 
 This document provides guidelines for AI assistants (Claude) working on this project.
 
+## TODO: Check for Updated Dependencies
+
+**IMPORTANT**: At the start of each session, check if there is a newer release of `pydub` on PyPI.
+
+Current version in use: `pydub>=0.25.0` (released 2021)
+
+**Issue**: The current PyPI version (0.25.1) produces SyntaxWarnings in Python 3.12+ due to invalid escape sequences in regex patterns. The fixes are merged in the GitHub master branch but not yet released.
+
+**Action**:
+1. Check the latest version: `curl -s https://pypi.org/pypi/pydub/json | python3 -c "import sys, json; print(json.load(sys.stdin)['info']['version'])"`
+2. If a version newer than 0.25.1 is available, announce it to the user as potential work to update the dependency
+3. Relevant GitHub issues: #801, #809, #814, #828
+
 ## Development Environment
 
 ### Target Platform
