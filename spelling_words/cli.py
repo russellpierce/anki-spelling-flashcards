@@ -28,17 +28,17 @@ def configure_verbose_logging() -> None:
     logger.remove()
     logger.add(
         lambda msg: console.print(msg, end="", markup=False, highlight=False),
-        level="DEBUG",
+        level="INFO",
         format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}",
     )
     console.print("[dim]Debug logging enabled[/dim]")
 
 
 def configure_quiet_logging() -> None:
-    """Configure quiet logging - suppress library logs and only show warnings/errors."""
+    """Configure quiet logging - suppress library logs and only show errors."""
     logger.remove()
-    # Suppress loguru output in quiet mode
-    logger.add(lambda msg: None, level="WARNING")
+    # Only show ERROR and above in quiet mode
+    logger.add(lambda msg: None, level="ERROR")
 
     # Suppress noisy library loggers
     import logging
