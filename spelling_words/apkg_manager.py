@@ -12,7 +12,7 @@ from loguru import logger
 # Define the Anki Model for spelling cards
 # Model ID should be a unique random number
 SPELLING_MODEL = genanki.Model(
-    1607392319,  # Random model ID
+    1755711727,  # Random model ID hardcoded for Anki to keep track of this model type
     "Spelling Word Model",
     fields=[
         {"name": "Audio"},
