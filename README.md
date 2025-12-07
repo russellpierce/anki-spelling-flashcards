@@ -28,29 +28,15 @@ uv run spelling-words -w your_words.txt -o output.apkg
 
 ```
 
-
 # Why / Story Time
 
 Flashcards are great for learning when the goal is brute force remembering / practicing for quick retrieval. The approaches that the long-lived open source Anki software uses, active recall testing and spaced repetition, are well researched and scientifically backed.  I loved it and used it where needed in my own learning.  Now, I have children.  One of them recently came home with a giant spelling list to learn.  I love spending time with my children, I don't love spending time being a flashcard drill sergeant.  I believe in flashcards, but creating 300+ spelling flashcards recording each word as I went, that also didn't sound like much fun.  Enter this project. Using the definitions and pronunciations from [Merriam-Webster](https://dictionaryapi.com/), 
 
 Creating flashcards for learning spelling is a pain.  
 
+# Requested Improvements
 
+These are improvements to this software I'd welcome help on.
 
-## Features
-
-### Version 1.1
-
-**Collegiate Dictionary Fallback**
-- Automatically falls back to the Merriam-Webster Collegiate Dictionary when words, definitions, or audio are not found in the Elementary Dictionary
-- Configure by setting `MW_COLLEGIATE_API_KEY` in your `.env` file (optional)
-- Improves word coverage and audio availability
-
-**Missing Words Report**
-- Automatically generates a `{filename}-missing.txt` report for any words that couldn't be completely processed
-- Lists each missing word with the reason and which dictionaries were attempted
-- Helps identify and resolve data gaps
-
-**Enhanced Card Formatting**
-- Answer word displayed in Heading 1 (H1) font for better readability
-- Definition prefixed with "definition:" label for clarity and future extensibility
+* Modify an existing deck
+* Work with decks directly on Ankiweb
