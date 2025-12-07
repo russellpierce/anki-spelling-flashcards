@@ -1,6 +1,7 @@
 """Command-line interface for spelling words APKG generator."""
 
 import contextlib
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -206,7 +207,7 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
     console.print(f"Cards created: [green]{len(apkg_builder.deck.notes)}[/green]")
     console.print(f"Total words processed: [blue]{len(words)}[/blue]")
 
-
+# TODO: process_words doesn't belong in cli.py as it is part of the program main logic
 def process_words(  # noqa: PLR0912, PLR0915
     words: list[str],
     dictionary_client: MerriamWebsterClient,
@@ -282,6 +283,9 @@ def process_words(  # noqa: PLR0912, PLR0915
             )
             skipped += 1
             continue
+        # Work on the definition text
+        pattern = re.compile(word, re.IGNORECASE)
+        definition = pattern.sub("[the spelling word]", definition)
 
         # Extract audio URLs (with fallback)
         audio_urls = dictionary_client.extract_audio_urls(word_data)

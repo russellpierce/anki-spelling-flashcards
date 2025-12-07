@@ -11,6 +11,7 @@ import requests
 from loguru import logger
 from requests_cache import CachedSession
 
+# TODO: Use tenacity for retries
 
 class MerriamWebsterClient:
     """Client for Merriam-Webster Elementary Dictionary API.
