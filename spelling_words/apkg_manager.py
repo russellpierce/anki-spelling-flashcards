@@ -197,6 +197,18 @@ class APKGReader:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='decks'")
+        has_decks_table = cursor.fetchone() is not None
+        if not has_decks_table:
+            # Explicitly not handling legacy format without decks table for simplicity.
+            conn.close()
+            msg = (
+                "Unsupported deck format: 'decks' table missing. "
+                "Upload the deck to AnkiWeb and re-download it to upgrade the format, "
+                "then try again."
+            )
+            raise ValueError(msg)
+
         # Get deck name and ID from decks table
         cursor.execute("SELECT name, id FROM decks LIMIT 1")
         result = cursor.fetchone()
