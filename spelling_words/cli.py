@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.progress import track
 
-from spelling_words.apkg_manager import APKGBuilder
+from spelling_words.apkg_manager import APKGBuilder, APKGReader
 from spelling_words.audio_processor import AudioProcessor
 from spelling_words.config import Settings, get_settings
 from spelling_words.dictionary_client import (
@@ -113,23 +113,34 @@ def write_missing_words_file(output_file: Path, missing_words: list[dict]) -> No
     help="Output APKG file path (default: output.apkg)",
 )
 @click.option(
+    "--update",
+    "-u",
+    "update_file",
+    required=False,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path),
+    help="Path to existing APKG file to update",
+)
+@click.option(
     "--verbose",
     "-v",
     is_flag=True,
     help="Enable debug logging",
 )
 @click.pass_context
-def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose: bool) -> None:
-    """Generate Anki flashcard deck (APKG) for spelling words.
+def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose: bool, update_file: Path | None) -> None:
+    """Generate or update Anki flashcard deck (APKG) for spelling words.
 
     Reads a list of words from a file, fetches definitions and audio
-    from Merriam-Webster Dictionary API, and creates an Anki deck
+    from Merriam-Webster Dictionary API, and creates or updates an Anki deck
     with flashcards for spelling practice.
     """
     # Show help if no words file provided
     if words_file is None:
         click.echo(ctx.get_help())
         ctx.exit()
+
+    if update_file and output_file.name == "output.apkg":
+        output_file = update_file
 
     # Configure logging level
     if verbose:
@@ -163,7 +174,12 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
         logger.debug("Collegiate dictionary fallback enabled")
 
     audio_processor = AudioProcessor()
-    apkg_builder = APKGBuilder("Spelling Words", str(output_file))
+
+    if update_file:
+        with APKGReader(update_file) as reader:
+            apkg_builder = APKGBuilder("Spelling Words", str(output_file), reader=reader)
+    else:
+        apkg_builder = APKGBuilder("Spelling Words", str(output_file))
 
     # Load word list
     logger.debug(f"Loading words from {words_file}...")
@@ -177,7 +193,7 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
     logger.info(f"Loaded {len(words)} words")
 
     # Process words
-    process_words(
+    missing_words = process_words(
         words=words,
         dictionary_client=dictionary_client,
         collegiate_client=collegiate_client,
@@ -206,6 +222,10 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
     console.print(f"\nOutput: [cyan]{output_file}[/cyan]")
     console.print(f"Cards created: [green]{len(apkg_builder.deck.notes)}[/green]")
     console.print(f"Total words processed: [blue]{len(words)}[/blue]")
+    # Write missing words file if there are any
+    if missing_words:
+        write_missing_words_file(output_file, missing_words)
+        console.print(f"\n[yellow]Missing words report:[/yellow] {output_file.stem}-missing.txt")
 
 # TODO: process_words doesn't belong in cli.py as it is part of the program main logic
 def process_words(  # noqa: PLR0912, PLR0915
@@ -216,7 +236,7 @@ def process_words(  # noqa: PLR0912, PLR0915
     apkg_builder: APKGBuilder,
     session: requests_cache.CachedSession,
     output_file: Path,
-) -> None:
+) -> list[dict]:
     """Process words and add them to the APKG builder.
 
     Args:
@@ -234,6 +254,12 @@ def process_words(  # noqa: PLR0912, PLR0915
     missing_words = []  # Track words that couldn't be completely processed
 
     for word in track(words, description="Processing words..."):
+        # Check for duplicates if updating
+        if apkg_builder.word_exists(word):
+            logger.debug(f"Word already exists in deck, skipping: {word}")
+            skipped += 1
+            continue
+
         # Fetch word data from elementary dictionary
         logger.debug(f"Fetching data for word from elementary dictionary: {word}")
         word_data = dictionary_client.get_word_data(word)
@@ -340,11 +366,8 @@ def process_words(  # noqa: PLR0912, PLR0915
     console.print(f"  [green]✓ Successful:[/green] {successful}")
     console.print(f"  [yellow]⊘ Skipped:[/yellow] {skipped}")
     console.print(f"  [red]✗ Failed:[/red] {failed}")
+    return missing_words
 
-    # Write missing words file if there are any
-    if missing_words:
-        write_missing_words_file(output_file, missing_words)
-        console.print(f"\n[yellow]Missing words report:[/yellow] {output_file.stem}-missing.txt")
 
 
 if __name__ == "__main__":

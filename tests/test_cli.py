@@ -5,11 +5,83 @@ NEVER remove, disable, or work around a failing test without explicit user revie
 When a test fails: STOP, ANALYZE, DISCUSS with user, and WAIT for approval before modifying tests.
 """
 
+import zipfile
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 from pydantic import ValidationError
+from spelling_words.apkg_manager import APKGBuilder, APKGReader
 from spelling_words.cli import main, write_missing_words_file
+
+
+class TestUpdateWorkflow:
+    """Tests for update workflow functionality."""
+
+    def test_cli_updates_existing_deck(self, tmp_path: Path):
+        """Test that CLI can update an existing APKG file."""
+        # 1. Create a base APKG file
+        base_word_file = tmp_path / "base_words.txt"
+        base_word_file.write_text("apple\nbanana\n")
+        base_output_file = tmp_path / "base.apkg"
+        base_output_file.touch()
+
+        runner = CliRunner()
+        # 2. Run update command with a new word list
+        update_word_file = tmp_path / "update_words.txt"
+        update_word_file.write_text("banana\ncherry\n")
+
+        with patch("spelling_words.cli.load_settings_or_abort"), patch(
+            "spelling_words.cli.APKGReader"
+        ) as mock_reader, patch("spelling_words.cli.APKGBuilder") as mock_builder:
+            mock_reader.return_value.__enter__.return_value.notes = [
+                {"flds": ["[sound:apple.mp3]", "a fruit", "apple"]},
+                {"flds": ["[sound:banana.mp3]", "a fruit", "banana"]},
+            ]
+            mock_reader.return_value.__enter__.return_value.media_files = {
+                "apple.mp3": b"apple_audio",
+                "banana.mp3": b"banana_audio",
+            }
+            mock_reader.return_value.__enter__.return_value.deck_name = "Spelling Words"
+            mock_builder.return_value.word_exists.side_effect = lambda word: word in [
+                "apple",
+                "banana",
+            ]
+            mock_builder.return_value.deck.notes = [
+                Mock(fields=["[sound:apple.mp3]", "a fruit", "apple"]),
+                Mock(fields=["[sound:banana.mp3]", "a fruit", "banana"]),
+            ]
+
+            with patch(
+                "spelling_words.cli.MerriamWebsterClient"
+            ) as mock_client, patch("spelling_words.cli.AudioProcessor") as mock_audio:
+                mock_client.return_value.get_word_data.return_value = {
+                    "word": "mock",
+                    "definition": "mock def",
+                    "audio_urls": ["mock_url"],
+                }
+                mock_client.return_value.extract_definition.return_value = "mock def"
+                mock_client.return_value.extract_audio_urls.return_value = ["mock_url"]
+                mock_audio.return_value.download_audio.return_value = b"mp3"
+                mock_audio.return_value.process_audio.return_value = (
+                    "mock.mp3",
+                    b"mp3",
+                )
+                result = runner.invoke(
+                    main,
+                    [
+                        "-w",
+                        str(update_word_file),
+                        "--update",
+                        str(base_output_file),
+                        "-v",
+                    ],
+                )
+                assert result.exit_code == 0, result.output
+
+            # 3. Verify the updated APKG file
+            assert mock_builder.return_value.add_word.call_count == 1
+            assert mock_builder.return_value.build.call_count == 1
 
 
 class TestCLIBasics:
@@ -23,7 +95,7 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "Usage:" in result.output
         assert "--words" in result.output
-        assert "Generate Anki flashcard deck" in result.output
+        assert "Generate or update Anki flashcard deck" in result.output
 
     def test_cli_accepts_words_short_option(self, tmp_path):
         """Test that CLI accepts -w short option."""
@@ -564,44 +636,32 @@ class TestMissingWordsFile:
         output_file = tmp_path / "output.apkg"
 
         runner = CliRunner()
-        with (
-            patch("spelling_words.cli.get_settings") as mock_settings,
-            patch("spelling_words.cli.WordListManager") as mock_manager,
-            patch("spelling_words.cli.MerriamWebsterClient") as mock_client,
-            patch("spelling_words.cli.AudioProcessor") as mock_audio,
-            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
-            patch("spelling_words.cli.requests_cache.CachedSession"),
+        with patch("spelling_words.cli.process_words") as mock_process_words, patch(
+            "spelling_words.cli.APKGBuilder"
+        ) as mock_apkg, patch("spelling_words.cli.validate_word_file"), patch(
+            "spelling_words.cli.load_settings_or_abort"
         ):
-            mock_settings.return_value.mw_elementary_api_key = "test-key"
-            mock_settings.return_value.mw_collegiate_api_key = None
-
-            mock_manager.return_value.load_from_file.return_value = ["goodword", "badword"]
-            mock_manager.return_value.remove_duplicates.return_value = ["goodword", "badword"]
-
-            # goodword succeeds, badword fails
-            def get_word_data_side_effect(word):
-                return {"word": word} if word == "goodword" else None
-
-            mock_client.return_value.get_word_data.side_effect = get_word_data_side_effect
-            mock_client.return_value.extract_definition.return_value = "definition"
-            mock_client.return_value.extract_audio_urls.return_value = [
-                "http://example.com/audio.mp3"
-            ]
-
-            mock_audio.return_value.download_audio.return_value = b"audio"
-            mock_audio.return_value.process_audio.return_value = ("word.mp3", b"audio")
-
             # Mock the deck to have one note
             mock_apkg.return_value.deck.notes = [Mock()]
+            mock_process_words.return_value = [
+                {
+                    "word": "badword",
+                    "reason": "Word not found",
+                    "attempted": "Elementary Dictionary",
+                }
+            ]
 
-            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            assert result.exit_code == 0
 
             # Missing words file should be created
             missing_file = tmp_path / "output-missing.txt"
             assert missing_file.exists()
 
+            # Check content of missing words file
             content = missing_file.read_text()
-            assert "badword" in content
+            assert 'Word: "badword"' in content
+            assert "Reason: Word not found" in content
 
     def test_cli_does_not_create_missing_file_when_all_words_succeed(self, tmp_path):
         """Test that CLI does not create missing file when all words succeed."""
