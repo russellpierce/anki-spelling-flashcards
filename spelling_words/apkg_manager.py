@@ -78,10 +78,7 @@ class APKGBuilder:
 
     def word_exists(self, word: str) -> bool:
         """Check if a word already exists in the deck."""
-        for note in self.deck.notes:
-            if note.fields[2] == word:
-                return True
-        return False
+        return any(note.fields[2] == word for note in self.deck.notes)
 
     def add_word(self, word: str, definition: str, audio_filename: str, audio_data: bytes) -> None:
         """Add a word to the deck.

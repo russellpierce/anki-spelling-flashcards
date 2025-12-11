@@ -5,13 +5,11 @@ NEVER remove, disable, or work around a failing test without explicit user revie
 When a test fails: STOP, ANALYZE, DISCUSS with user, and WAIT for approval before modifying tests.
 """
 
-import zipfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 from pydantic import ValidationError
-from spelling_words.apkg_manager import APKGBuilder, APKGReader
 from spelling_words.cli import main, write_missing_words_file
 
 
@@ -31,9 +29,11 @@ class TestUpdateWorkflow:
         update_word_file = tmp_path / "update_words.txt"
         update_word_file.write_text("banana\ncherry\n")
 
-        with patch("spelling_words.cli.load_settings_or_abort"), patch(
-            "spelling_words.cli.APKGReader"
-        ) as mock_reader, patch("spelling_words.cli.APKGBuilder") as mock_builder:
+        with (
+            patch("spelling_words.cli.load_settings_or_abort"),
+            patch("spelling_words.cli.APKGReader") as mock_reader,
+            patch("spelling_words.cli.APKGBuilder") as mock_builder,
+        ):
             mock_reader.return_value.__enter__.return_value.notes = [
                 {"flds": ["[sound:apple.mp3]", "a fruit", "apple"]},
                 {"flds": ["[sound:banana.mp3]", "a fruit", "banana"]},
@@ -52,9 +52,10 @@ class TestUpdateWorkflow:
                 Mock(fields=["[sound:banana.mp3]", "a fruit", "banana"]),
             ]
 
-            with patch(
-                "spelling_words.cli.MerriamWebsterClient"
-            ) as mock_client, patch("spelling_words.cli.AudioProcessor") as mock_audio:
+            with (
+                patch("spelling_words.cli.MerriamWebsterClient") as mock_client,
+                patch("spelling_words.cli.AudioProcessor") as mock_audio,
+            ):
                 mock_client.return_value.get_word_data.return_value = {
                     "word": "mock",
                     "definition": "mock def",
@@ -636,10 +637,11 @@ class TestMissingWordsFile:
         output_file = tmp_path / "output.apkg"
 
         runner = CliRunner()
-        with patch("spelling_words.cli.process_words") as mock_process_words, patch(
-            "spelling_words.cli.APKGBuilder"
-        ) as mock_apkg, patch("spelling_words.cli.validate_word_file"), patch(
-            "spelling_words.cli.load_settings_or_abort"
+        with (
+            patch("spelling_words.cli.process_words") as mock_process_words,
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+            patch("spelling_words.cli.validate_word_file"),
+            patch("spelling_words.cli.load_settings_or_abort"),
         ):
             # Mock the deck to have one note
             mock_apkg.return_value.deck.notes = [Mock()]

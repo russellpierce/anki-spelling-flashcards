@@ -95,6 +95,17 @@ def write_missing_words_file(output_file: Path, missing_words: list[dict]) -> No
     logger.info(f"Wrote missing words report to {missing_file}")
 
 
+def load_word_list(word_manager: WordListManager, words_file: Path) -> list[str]:
+    """Load word list from file, remove duplicates, and handle errors."""
+    logger.debug(f"Loading words from {words_file}...")
+    try:
+        words = word_manager.load_from_file(str(words_file))
+        return word_manager.remove_duplicates(words)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[bold red]Error:[/bold red] Failed to load word list: {e}")
+        raise click.Abort from e
+
+
 @click.command()
 @click.option(
     "--words",
@@ -127,14 +138,19 @@ def write_missing_words_file(output_file: Path, missing_words: list[dict]) -> No
     help="Enable debug logging",
 )
 @click.pass_context
-def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose: bool, update_file: Path | None) -> None:
+def main(
+    ctx: click.Context,
+    words_file: Path | None,
+    output_file: Path,
+    verbose: bool,
+    update_file: Path | None,
+) -> None:
     """Generate or update Anki flashcard deck (APKG) for spelling words.
 
     Reads a list of words from a file, fetches definitions and audio
     from Merriam-Webster Dictionary API, and creates or updates an Anki deck
     with flashcards for spelling practice.
     """
-    # Show help if no words file provided
     if words_file is None:
         click.echo(ctx.get_help())
         ctx.exit()
@@ -142,37 +158,26 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
     if update_file and output_file.name == "output.apkg":
         output_file = update_file
 
-    # Configure logging level
     if verbose:
         configure_verbose_logging()
     else:
         configure_quiet_logging()
 
-    # Load settings
     settings = load_settings_or_abort()
-
-    # Validate word file
     validate_word_file(words_file)
 
-    # Initialize components
-    logger.debug("Initializing components...")
-
-    # Create cached session for HTTP requests
     session = requests_cache.CachedSession(
         "spelling_words_cache",
         backend="sqlite",
         expire_after=timedelta(days=30),
     )
-
     word_manager = WordListManager()
     dictionary_client = MerriamWebsterClient(settings.mw_elementary_api_key, session)
-
-    # Initialize collegiate dictionary client if API key is configured
-    collegiate_client = None
-    if settings.mw_collegiate_api_key:
-        collegiate_client = MerriamWebsterCollegiateClient(settings.mw_collegiate_api_key, session)
-        logger.debug("Collegiate dictionary fallback enabled")
-
+    collegiate_client = (
+        MerriamWebsterCollegiateClient(settings.mw_collegiate_api_key, session)
+        if settings.mw_collegiate_api_key
+        else None
+    )
     audio_processor = AudioProcessor()
 
     if update_file:
@@ -181,18 +186,10 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
     else:
         apkg_builder = APKGBuilder("Spelling Words", str(output_file))
 
-    # Load word list
-    logger.debug(f"Loading words from {words_file}...")
-    try:
-        words = word_manager.load_from_file(str(words_file))
-        words = word_manager.remove_duplicates(words)
-    except (FileNotFoundError, ValueError) as e:
-        console.print(f"[bold red]Error:[/bold red] Failed to load word list: {e}")
-        raise click.Abort from e
+    words = load_word_list(word_manager, words_file)
 
     logger.info(f"Loaded {len(words)} words")
 
-    # Process words
     missing_words = process_words(
         words=words,
         dictionary_client=dictionary_client,
@@ -203,7 +200,6 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
         output_file=output_file,
     )
 
-    # Build APKG if we have any notes
     if len(apkg_builder.deck.notes) == 0:
         console.print("\n[bold yellow]Warning:[/bold yellow] No words were successfully processed")
         console.print("APKG file not created")
@@ -217,18 +213,121 @@ def main(ctx: click.Context, words_file: Path | None, output_file: Path, verbose
         logger.exception("APKG build failed")
         raise click.Abort from e
 
-    # Display summary
     console.print("\n[bold green]✓ Successfully created APKG file![/bold green]")
     console.print(f"\nOutput: [cyan]{output_file}[/cyan]")
     console.print(f"Cards created: [green]{len(apkg_builder.deck.notes)}[/green]")
     console.print(f"Total words processed: [blue]{len(words)}[/blue]")
-    # Write missing words file if there are any
     if missing_words:
         write_missing_words_file(output_file, missing_words)
         console.print(f"\n[yellow]Missing words report:[/yellow] {output_file.stem}-missing.txt")
 
-# TODO: process_words doesn't belong in cli.py as it is part of the program main logic
-def process_words(  # noqa: PLR0912, PLR0915
+
+def get_word_data(
+    word: str,
+    dictionary_client: MerriamWebsterClient,
+    collegiate_client: MerriamWebsterCollegiateClient | None,
+) -> tuple[dict | None, list[str]]:
+    """Fetch word data from the elementary dictionary with fallback to collegiate."""
+    logger.debug(f"Fetching data for word from elementary dictionary: {word}")
+    word_data = dictionary_client.get_word_data(word)
+    attempted_sources = ["Elementary Dictionary"]
+
+    if word_data is None and collegiate_client:
+        logger.debug(f"Word not found in elementary dictionary, trying collegiate: {word}")
+        word_data = collegiate_client.get_word_data(word)
+        attempted_sources.append("Collegiate Dictionary")
+
+    return word_data, attempted_sources
+
+
+def process_word(
+    word: str,
+    dictionary_client: MerriamWebsterClient,
+    collegiate_client: MerriamWebsterCollegiateClient | None,
+    audio_processor: AudioProcessor,
+    apkg_builder: APKGBuilder,
+    session: requests_cache.CachedSession,
+) -> dict | None:
+    """Fetch, process, and add a single word to the deck."""
+    if apkg_builder.word_exists(word):
+        logger.debug(f"Word already exists in deck, skipping: {word}")
+        return {"status": "skipped"}
+
+    word_data, attempted_sources = get_word_data(word, dictionary_client, collegiate_client)
+
+    if word_data is None:
+        logger.warning(f"Word not found in any dictionary: {word}")
+        return {
+            "status": "failed",
+            "word": word,
+            "reason": "Word not found in either dictionary",
+            "attempted": ", ".join(attempted_sources),
+        }
+
+    definition = None
+    try:
+        definition = dictionary_client.extract_definition(word_data)
+    except ValueError:
+        if collegiate_client:
+            logger.debug(f"No definition in elementary, trying collegiate: {word}")
+            collegiate_data = collegiate_client.get_word_data(word)
+            if collegiate_data and "Collegiate Dictionary" not in attempted_sources:
+                attempted_sources.append("Collegiate Dictionary")
+            if collegiate_data:
+                with contextlib.suppress(ValueError):
+                    definition = collegiate_client.extract_definition(collegiate_data)
+
+    if definition is None:
+        logger.warning(f"No definition found for {word}")
+        return {
+            "status": "failed",
+            "word": word,
+            "reason": "No definition found in either dictionary",
+            "attempted": ", ".join(attempted_sources),
+        }
+    pattern = re.compile(word, re.IGNORECASE)
+    definition = pattern.sub("[the spelling word]", definition)
+
+    audio_urls = dictionary_client.extract_audio_urls(word_data)
+    if not audio_urls and collegiate_client:
+        logger.debug(f"No audio in elementary, trying collegiate: {word}")
+        collegiate_data = collegiate_client.get_word_data(word)
+        if collegiate_data and "Collegiate Dictionary" not in attempted_sources:
+            attempted_sources.append("Collegiate Dictionary")
+        if collegiate_data:
+            audio_urls = collegiate_client.extract_audio_urls(collegiate_data)
+
+    if not audio_urls:
+        logger.warning(f"No audio URLs found for {word}")
+        return {
+            "status": "failed",
+            "word": word,
+            "reason": "No audio found in either dictionary",
+            "attempted": ", ".join(attempted_sources),
+        }
+
+    audio_url = audio_urls[0]
+    logger.debug(f"Downloading audio from {audio_url}")
+    audio_bytes = audio_processor.download_audio(audio_url, session)
+
+    if audio_bytes is None:
+        logger.warning(f"Failed to download audio for {word}")
+        return {
+            "status": "failed",
+            "word": word,
+            "reason": "Audio download failed",
+            "attempted": ", ".join(attempted_sources),
+        }
+
+    audio_filename, mp3_bytes = audio_processor.process_audio(audio_bytes, word)
+
+    apkg_builder.add_word(word, definition, audio_filename, mp3_bytes)
+
+    logger.info(f"Successfully processed word: {word}")
+    return {"status": "successful"}
+
+
+def process_words(
     words: list[str],
     dictionary_client: MerriamWebsterClient,
     collegiate_client: MerriamWebsterCollegiateClient | None,
@@ -237,137 +336,34 @@ def process_words(  # noqa: PLR0912, PLR0915
     session: requests_cache.CachedSession,
     output_file: Path,
 ) -> list[dict]:
-    """Process words and add them to the APKG builder.
-
-    Args:
-        words: List of words to process
-        dictionary_client: Elementary dictionary API client
-        collegiate_client: Collegiate dictionary API client (optional fallback)
-        audio_processor: Audio processor
-        apkg_builder: APKG builder
-        session: Cached session for HTTP requests
-        output_file: Output APKG file path (used to generate missing words file)
-    """
+    """Process words and add them to the APKG builder."""
     successful = 0
     failed = 0
     skipped = 0
-    missing_words = []  # Track words that couldn't be completely processed
+    missing_words = []
 
     for word in track(words, description="Processing words..."):
-        # Check for duplicates if updating
-        if apkg_builder.word_exists(word):
-            logger.debug(f"Word already exists in deck, skipping: {word}")
+        result = process_word(
+            word,
+            dictionary_client,
+            collegiate_client,
+            audio_processor,
+            apkg_builder,
+            session,
+        )
+        if result["status"] == "successful":
+            successful += 1
+        elif result["status"] == "skipped":
             skipped += 1
-            continue
+        else:
+            failed += 1
+            missing_words.append(result)
 
-        # Fetch word data from elementary dictionary
-        logger.debug(f"Fetching data for word from elementary dictionary: {word}")
-        word_data = dictionary_client.get_word_data(word)
-        attempted_sources = ["Elementary Dictionary"]
-
-        # Fallback to collegiate dictionary if word not found
-        if word_data is None and collegiate_client:
-            logger.debug(f"Word not found in elementary dictionary, trying collegiate: {word}")
-            word_data = collegiate_client.get_word_data(word)
-            attempted_sources.append("Collegiate Dictionary")
-
-        if word_data is None:
-            logger.warning(f"Word not found in any dictionary: {word}")
-            missing_words.append(
-                {
-                    "word": word,
-                    "reason": "Word not found in either dictionary",
-                    "attempted": ", ".join(attempted_sources),
-                }
-            )
-            skipped += 1
-            continue
-
-        # Extract definition (with fallback)
-        definition = None
-        try:
-            definition = dictionary_client.extract_definition(word_data)
-        except ValueError:
-            # Try collegiate dictionary for definition if available
-            if collegiate_client:
-                logger.debug(f"No definition in elementary, trying collegiate: {word}")
-                collegiate_data = collegiate_client.get_word_data(word)
-                if collegiate_data and "Collegiate Dictionary" not in attempted_sources:
-                    attempted_sources.append("Collegiate Dictionary")
-                if collegiate_data:
-                    with contextlib.suppress(ValueError):
-                        definition = collegiate_client.extract_definition(collegiate_data)
-
-        if definition is None:
-            logger.warning(f"No definition found for {word}")
-            missing_words.append(
-                {
-                    "word": word,
-                    "reason": "No definition found in either dictionary",
-                    "attempted": ", ".join(attempted_sources),
-                }
-            )
-            skipped += 1
-            continue
-        # Work on the definition text
-        pattern = re.compile(word, re.IGNORECASE)
-        definition = pattern.sub("[the spelling word]", definition)
-
-        # Extract audio URLs (with fallback)
-        audio_urls = dictionary_client.extract_audio_urls(word_data)
-        if not audio_urls and collegiate_client:
-            logger.debug(f"No audio in elementary, trying collegiate: {word}")
-            collegiate_data = collegiate_client.get_word_data(word)
-            if collegiate_data and "Collegiate Dictionary" not in attempted_sources:
-                attempted_sources.append("Collegiate Dictionary")
-            if collegiate_data:
-                audio_urls = collegiate_client.extract_audio_urls(collegiate_data)
-
-        if not audio_urls:
-            logger.warning(f"No audio URLs found for {word}")
-            missing_words.append(
-                {
-                    "word": word,
-                    "reason": "No audio found in either dictionary",
-                    "attempted": ", ".join(attempted_sources),
-                }
-            )
-            skipped += 1
-            continue
-
-        # Download and process audio (use first URL)
-        audio_url = audio_urls[0]
-        logger.debug(f"Downloading audio from {audio_url}")
-        audio_bytes = audio_processor.download_audio(audio_url, session)
-
-        if audio_bytes is None:
-            logger.warning(f"Failed to download audio for {word}")
-            missing_words.append(
-                {
-                    "word": word,
-                    "reason": "Audio download failed",
-                    "attempted": ", ".join(attempted_sources),
-                }
-            )
-            skipped += 1
-            continue
-
-        # Process audio to MP3
-        audio_filename, mp3_bytes = audio_processor.process_audio(audio_bytes, word)
-
-        # Add to APKG
-        apkg_builder.add_word(word, definition, audio_filename, mp3_bytes)
-
-        logger.info(f"Successfully processed word: {word}")
-        successful += 1
-
-    # Print summary
     console.print("\n[bold]Processing Summary:[/bold]")
     console.print(f"  [green]✓ Successful:[/green] {successful}")
     console.print(f"  [yellow]⊘ Skipped:[/yellow] {skipped}")
     console.print(f"  [red]✗ Failed:[/red] {failed}")
     return missing_words
-
 
 
 if __name__ == "__main__":
