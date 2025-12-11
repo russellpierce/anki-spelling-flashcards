@@ -3,8 +3,12 @@
 This module handles the creation of Anki Package (APKG) files using genanki.
 """
 
+import json
+import sqlite3
 import tempfile
+import zipfile
 from pathlib import Path
+from typing import Optional
 
 import genanki
 from loguru import logger
@@ -32,37 +36,49 @@ SPELLING_MODEL = genanki.Model(
 class APKGBuilder:
     """Builder for creating Anki Package (APKG) files with spelling words."""
 
-    def __init__(self, deck_name: str, output_path: str):
+    def __init__(self, deck_name: str, output_path: str, reader: Optional["APKGReader"] = None):
         """Initialize the APKG builder.
-
         Args:
             deck_name: Name of the Anki deck
             output_path: Path where the APKG file will be saved
-
+            reader: Optional APKGReader instance to load existing deck
         Raises:
             ValueError: If deck_name or output_path is empty
         """
         if not deck_name or not deck_name.strip():
             msg = "deck_name cannot be empty"
             raise ValueError(msg)
-
         if not output_path or not output_path.strip():
             msg = "output_path cannot be empty"
             raise ValueError(msg)
-
         self.deck_name = deck_name
         self.output_path = output_path
-
-        # Create a genanki Deck with a random ID
-        # Use hash of deck name for consistent but unique ID
-        deck_id = abs(hash(deck_name)) % (10**10)
-        self.deck = genanki.Deck(deck_id, deck_name)
-
         # Track media files (tuple of filename and data)
         self.media_files = []
         self._media_data = {}  # Map filename -> data
-
+        if reader:
+            self.deck = genanki.Deck(reader.deck_id, reader.deck_name)
+            for note_data in reader.notes:
+                note = genanki.Note(
+                    model=SPELLING_MODEL,
+                    fields=note_data["flds"],
+                    guid=note_data["id"],
+                )
+                self.deck.add_note(note)
+            for filename, data in reader.media_files.items():
+                self.media_files.append(filename)
+                self._media_data[filename] = data
+            logger.info(f"Loaded {len(self.deck.notes)} notes from existing deck.")
+        else:
+            # Create a genanki Deck with a random ID
+            # Use hash of deck name for consistent but unique ID
+            deck_id = abs(hash(deck_name)) % (10**10)
+            self.deck = genanki.Deck(deck_id, deck_name)
         logger.info(f"Initialized APKGBuilder for deck '{deck_name}'")
+
+    def word_exists(self, word: str) -> bool:
+        """Check if a word already exists in the deck."""
+        return any(note.fields[2] == word for note in self.deck.notes)
 
     def add_word(self, word: str, definition: str, audio_filename: str, audio_data: bytes) -> None:
         """Add a word to the deck.
@@ -156,3 +172,67 @@ class APKGBuilder:
         logger.info(
             f"Successfully built APKG with {len(self.deck.notes)} notes at {self.output_path}"
         )
+
+
+class APKGReader:
+    """Reader for existing Anki Package (APKG) files."""
+
+    def __init__(self, apkg_path: Path):
+        """Initialize the APKG reader."""
+        self.apkg_path = apkg_path
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
+        self._extract_zip()
+        self._parse_anki2()
+
+    def _extract_zip(self) -> None:
+        """Extract the APKG file to a temporary directory."""
+        with zipfile.ZipFile(self.apkg_path, "r") as zip_ref:
+            zip_ref.extractall(self.temp_path)
+        logger.debug(f"Extracted {self.apkg_path} to {self.temp_path}")
+
+    def _parse_anki2(self) -> None:
+        """Parse the collection.anki2 database to extract deck info."""
+        db_path = self.temp_path / "collection.anki2"
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='decks'")
+        has_decks_table = cursor.fetchone() is not None
+        if not has_decks_table:
+            # Explicitly not handling legacy format without decks table for simplicity.
+            conn.close()
+            msg = (
+                "Unsupported deck format: 'decks' table missing. "
+                "Upload the deck to AnkiWeb and re-download it to upgrade the format, "
+                "then try again."
+            )
+            raise ValueError(msg)
+
+        # Get deck name and ID from decks table
+        cursor.execute("SELECT name, id FROM decks LIMIT 1")
+        result = cursor.fetchone()
+        self.deck_name = result[0]
+        self.deck_id = result[1]
+
+        # Get notes and media files
+        self.notes = []
+        self.media_files = {}
+
+        cursor.execute("SELECT id, flds FROM notes")
+        for note_id, flds in cursor.fetchall():
+            self.notes.append({"id": note_id, "flds": flds.split("\x1f")})
+
+        media_map = json.loads((self.temp_path / "media").read_text())
+        for idx, filename in media_map.items():
+            self.media_files[filename] = (self.temp_path / idx).read_bytes()
+
+        conn.close()
+
+    def __enter__(self) -> "APKGReader":
+        """Enter the context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Exit the context manager and clean up temporary files."""
+        self.temp_dir.cleanup()
