@@ -47,7 +47,7 @@ htmlcov/
 
 # Generated APKG files
 *.apkg
-output-missing.txt
+*-missing.txt
 
 # Logs
 *.log
