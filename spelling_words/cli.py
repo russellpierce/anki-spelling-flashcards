@@ -21,6 +21,10 @@ from spelling_words.dictionary_client import (
 )
 from spelling_words.word_list import WordListManager
 
+DECK_NAME_REQUIRED_ERROR = "--deck-name is required when creating a new deck"
+DECK_NAME_UPDATE_ERROR = "--deck-name cannot be used with --update"
+
+
 console = Console()
 
 
@@ -165,10 +169,10 @@ def main(
         ctx.exit()
 
     if update_file and deck_name:
-        raise click.UsageError("--deck-name cannot be used with --update")
+        raise click.UsageError(DECK_NAME_UPDATE_ERROR)
 
     if not update_file and not deck_name:
-        raise click.UsageError("--deck-name is required when creating a new deck")
+        raise click.UsageError(DECK_NAME_REQUIRED_ERROR)
 
     if update_file and output_file.name == "output.apkg":
         output_file = update_file

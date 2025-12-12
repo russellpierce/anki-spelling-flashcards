@@ -10,7 +10,12 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 from pydantic import ValidationError
-from spelling_words.cli import main, write_missing_words_file
+from spelling_words.cli import (
+    DECK_NAME_REQUIRED_ERROR,
+    DECK_NAME_UPDATE_ERROR,
+    main,
+    write_missing_words_file,
+)
 
 
 class TestDeckNameOption:
@@ -63,7 +68,7 @@ class TestDeckNameOption:
             ],
         )
         assert result.exit_code != 0
-        assert "--deck-name is required when creating a new deck" in result.output
+        assert DECK_NAME_REQUIRED_ERROR in result.output
 
     def test_update_deck_with_deck_name_fails(self, tmp_path: Path):
         """Test that using --deck-name with --update fails."""
@@ -86,7 +91,7 @@ class TestDeckNameOption:
             ],
         )
         assert result.exit_code != 0
-        assert "--deck-name cannot be used with --update" in result.output
+        assert DECK_NAME_UPDATE_ERROR in result.output
 
 
 class TestUpdateWorkflow:
