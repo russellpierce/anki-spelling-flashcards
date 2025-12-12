@@ -10,7 +10,88 @@ from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 from pydantic import ValidationError
-from spelling_words.cli import main, write_missing_words_file
+from spelling_words.cli import (
+    DECK_NAME_REQUIRED_ERROR,
+    DECK_NAME_UPDATE_ERROR,
+    main,
+    write_missing_words_file,
+)
+
+
+class TestDeckNameOption:
+    """Tests for the --deck-name option."""
+
+    def test_create_deck_with_deck_name_succeeds(self, tmp_path: Path):
+        """Test that creating a new deck with --deck-name succeeds."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+        output_file = tmp_path / "output.apkg"
+        deck_name = "My Test Deck"
+
+        runner = CliRunner()
+        with (
+            patch("spelling_words.cli.get_settings") as mock_settings,
+            patch("spelling_words.cli.process_words"),
+            patch("spelling_words.cli.APKGBuilder") as mock_apkg,
+        ):
+            mock_settings.return_value.mw_elementary_api_key = "test-key"
+            # Mock the deck to have at least one note
+            mock_apkg.return_value.deck.notes = [Mock()]
+            result = runner.invoke(
+                main,
+                [
+                    "-w",
+                    str(word_file),
+                    "-o",
+                    str(output_file),
+                    "--deck-name",
+                    deck_name,
+                ],
+            )
+            assert result.exit_code == 0
+            mock_apkg.assert_called_once_with(deck_name, str(output_file))
+
+    def test_create_deck_without_deck_name_fails(self, tmp_path: Path):
+        """Test that creating a new deck without --deck-name fails."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+        output_file = tmp_path / "output.apkg"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "-w",
+                str(word_file),
+                "-o",
+                str(output_file),
+            ],
+        )
+        assert result.exit_code != 0
+        assert DECK_NAME_REQUIRED_ERROR in result.output
+
+    def test_update_deck_with_deck_name_fails(self, tmp_path: Path):
+        """Test that using --deck-name with --update fails."""
+        word_file = tmp_path / "words.txt"
+        word_file.write_text("test\n")
+        update_file = tmp_path / "update.apkg"
+        update_file.touch()
+        deck_name = "My Test Deck"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "-w",
+                str(word_file),
+                "--update",
+                str(update_file),
+                "--deck-name",
+                deck_name,
+            ],
+        )
+        assert result.exit_code != 0
+        assert DECK_NAME_UPDATE_ERROR in result.output
 
 
 class TestUpdateWorkflow:
@@ -105,7 +186,7 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with patch("spelling_words.cli.process_words"):
-            result = runner.invoke(main, ["-w", str(word_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
             # Should not fail on missing words option
             assert "--words" not in result.output
 
@@ -116,7 +197,7 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with patch("spelling_words.cli.process_words"):
-            result = runner.invoke(main, ["--words", str(word_file)])
+            result = runner.invoke(main, ["--words", str(word_file), "--deck-name", "Test Deck"])
             # Should not fail on missing words option
             assert "Missing option" not in result.output
 
@@ -135,7 +216,9 @@ class TestCLIBasics:
             mock_settings.return_value.mw_elementary_api_key = "test-key"
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
-            result = runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            result = runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
             # Should succeed
             assert result.exit_code == 0
 
@@ -146,7 +229,7 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with patch("spelling_words.cli.process_words"):
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
             # Test completes successfully
             assert True
 
@@ -164,7 +247,7 @@ class TestCLIBasics:
             mock_settings.return_value.mw_elementary_api_key = "test-key"
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
-            result = runner.invoke(main, ["-w", str(word_file), "-v"])
+            result = runner.invoke(main, ["-w", str(word_file), "-v", "--deck-name", "Test Deck"])
             # Should succeed and show debug logging
             assert result.exit_code == 0
             assert "Debug logging enabled" in result.output
@@ -205,7 +288,7 @@ class TestCLIValidation:
                 "Settings validation error",
                 [{"type": "missing", "loc": ("MW_ELEMENTARY_API_KEY",), "msg": "Field required"}],
             )
-            result = runner.invoke(main, ["-w", str(word_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             assert result.exit_code != 0
             assert "API key" in result.output or "MW_ELEMENTARY_API_KEY" in result.output
@@ -226,7 +309,7 @@ class TestCLIWorkflow:
             patch("spelling_words.cli.process_words"),
         ):
             mock_settings.return_value.mw_elementary_api_key = "test-key"
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Verify WordListManager was instantiated
             assert mock_manager.called
@@ -243,7 +326,7 @@ class TestCLIWorkflow:
             patch("spelling_words.cli.process_words"),
         ):
             mock_settings.return_value.mw_elementary_api_key = "test-key"
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Verify CachedSession was created
             assert mock_session.called
@@ -262,7 +345,7 @@ class TestCLIWorkflow:
             patch("spelling_words.cli.process_words"),
         ):
             mock_settings.return_value.mw_elementary_api_key = "test-key"
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Verify all components were initialized
             assert mock_client.called
@@ -301,7 +384,9 @@ class TestCLIWorkflow:
             # Mock the deck to have notes (simulating successful word processing)
             mock_apkg.return_value.deck.notes = [Mock()]
 
-            result = runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            result = runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
 
             assert result.exit_code == 0
             # Verify build was called
@@ -329,7 +414,9 @@ class TestCLIWorkflow:
             # Word not found
             mock_client.return_value.get_word_data.return_value = None
 
-            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
 
             # Should complete but show warning/skip
             # Since no words were successfully processed, build should not be called
@@ -362,7 +449,9 @@ class TestCLIWorkflow:
             # Audio download fails
             mock_audio.return_value.download_audio.return_value = None
 
-            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
 
             # Should skip word without audio
             assert mock_apkg.return_value.build.call_count == 0
@@ -401,7 +490,7 @@ class TestCLIOutput:
             # Mock the deck to have notes
             mock_apkg.return_value.deck.notes = [Mock()]
 
-            result = runner.invoke(main, ["-w", str(word_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Should show summary information
             assert result.exit_code == 0
@@ -419,7 +508,7 @@ class TestCLIOutput:
             patch("spelling_words.cli.process_words"),
         ):
             mock_settings.return_value.mw_elementary_api_key = "test-key"
-            runner.invoke(main, ["-w", str(word_file), "--verbose"])
+            runner.invoke(main, ["-w", str(word_file), "--verbose", "--deck-name", "Test Deck"])
 
             # Verify logger was configured for debug
             # (exact verification depends on implementation)
@@ -445,7 +534,7 @@ class TestCollegiateFallback:
             mock_settings.return_value.mw_elementary_api_key = "elementary-key"
             mock_settings.return_value.mw_collegiate_api_key = "collegiate-key"
 
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Both clients should be initialized
             assert mock_elementary.called
@@ -467,7 +556,7 @@ class TestCollegiateFallback:
             mock_settings.return_value.mw_elementary_api_key = "elementary-key"
             mock_settings.return_value.mw_collegiate_api_key = None
 
-            runner.invoke(main, ["-w", str(word_file)])
+            runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Only elementary client should be initialized
             assert mock_elementary.called
@@ -509,7 +598,7 @@ class TestCollegiateFallback:
             # Mock the deck to have notes (word was successfully added)
             mock_apkg.return_value.deck.notes = [Mock()]
 
-            result = runner.invoke(main, ["-w", str(word_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Word should be successfully processed using collegiate fallback
             assert result.exit_code == 0
@@ -556,7 +645,7 @@ class TestCollegiateFallback:
             # Mock the deck to have notes
             mock_apkg.return_value.deck.notes = [Mock()]
 
-            result = runner.invoke(main, ["-w", str(word_file)])
+            result = runner.invoke(main, ["-w", str(word_file), "--deck-name", "Test Deck"])
 
             # Word should be successfully processed with collegiate audio
             assert result.exit_code == 0
@@ -653,7 +742,9 @@ class TestMissingWordsFile:
                 }
             ]
 
-            result = runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            result = runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
             assert result.exit_code == 0
 
             # Missing words file should be created
@@ -698,7 +789,9 @@ class TestMissingWordsFile:
             # Mock the deck to have one note
             mock_apkg.return_value.deck.notes = [Mock()]
 
-            runner.invoke(main, ["-w", str(word_file), "-o", str(output_file)])
+            runner.invoke(
+                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+            )
 
             # Missing words file should NOT be created
             missing_file = tmp_path / "output-missing.txt"

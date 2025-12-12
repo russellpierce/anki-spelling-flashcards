@@ -21,6 +21,10 @@ from spelling_words.dictionary_client import (
 )
 from spelling_words.word_list import WordListManager
 
+DECK_NAME_REQUIRED_ERROR = "--deck-name is required when creating a new deck"
+DECK_NAME_UPDATE_ERROR = "--deck-name cannot be used with --update.  We will not update the deck name of an existing deck. Do that outside of this program."
+
+
 console = Console()
 
 
@@ -116,6 +120,14 @@ def load_word_list(word_manager: WordListManager, words_file: Path) -> list[str]
     help="Path to word list file (one word per line)",
 )
 @click.option(
+    "--deck-name",
+    "-n",
+    "deck_name",
+    required=False,
+    type=str,
+    help="Name of the Anki deck. Required when creating a new deck.",
+)
+@click.option(
     "--output",
     "-o",
     "output_file",
@@ -144,6 +156,7 @@ def main(
     output_file: Path,
     verbose: bool,
     update_file: Path | None,
+    deck_name: str | None,
 ) -> None:
     """Generate or update Anki flashcard deck (APKG) for spelling words.
 
@@ -154,6 +167,12 @@ def main(
     if words_file is None:
         click.echo(ctx.get_help())
         ctx.exit()
+
+    if update_file and deck_name:
+        raise click.UsageError(DECK_NAME_UPDATE_ERROR)
+
+    if not update_file and not deck_name:
+        raise click.UsageError(DECK_NAME_REQUIRED_ERROR)
 
     if update_file and output_file.name == "output.apkg":
         output_file = update_file
@@ -182,9 +201,10 @@ def main(
 
     if update_file:
         with APKGReader(update_file) as reader:
-            apkg_builder = APKGBuilder("Spelling Words", str(output_file), reader=reader)
+            apkg_builder = APKGBuilder(reader.deck_name, str(output_file), reader=reader)
     else:
-        apkg_builder = APKGBuilder("Spelling Words", str(output_file))
+        # deck_name is guaranteed to be non-None here by the check above
+        apkg_builder = APKGBuilder(deck_name, str(output_file))
 
     words = load_word_list(word_manager, words_file)
 
