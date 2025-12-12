@@ -22,7 +22,7 @@ from spelling_words.dictionary_client import (
 from spelling_words.word_list import WordListManager
 
 DECK_NAME_REQUIRED_ERROR = "--deck-name is required when creating a new deck"
-DECK_NAME_UPDATE_ERROR = "--deck-name cannot be used with --update"
+DECK_NAME_UPDATE_ERROR = "--deck-name cannot be used with --update.  We will not update the deck name of an existing deck. Do that outside of this program."
 
 
 console = Console()
