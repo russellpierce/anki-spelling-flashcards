@@ -199,7 +199,9 @@ class TestCLIBasics:
 
         runner = CliRunner()
         with patch("spelling_words.cli.process_words"):
-            result = runner.invoke(generate, ["--words", str(word_file), "--deck-name", "Test Deck"])
+            result = runner.invoke(
+                generate, ["--words", str(word_file), "--deck-name", "Test Deck"]
+            )
             # Should not fail on missing words option
             assert "Missing option" not in result.output
 
@@ -249,7 +251,9 @@ class TestCLIBasics:
             mock_settings.return_value.mw_elementary_api_key = "test-key"
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
-            result = runner.invoke(generate, ["-w", str(word_file), "-v", "--deck-name", "Test Deck"])
+            result = runner.invoke(
+                generate, ["-w", str(word_file), "-v", "--deck-name", "Test Deck"]
+            )
             # Should succeed and show debug logging
             assert result.exit_code == 0
             assert "Debug logging enabled" in result.output

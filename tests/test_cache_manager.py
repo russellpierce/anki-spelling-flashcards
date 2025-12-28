@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 import requests_cache
-
 from spelling_words.cache_manager import CacheManager
 
 
@@ -21,9 +20,7 @@ def temp_cache_dir(monkeypatch):
     with tempfile.TemporaryDirectory() as temp_dir:
         # Change the cache directory for testing
         cache_path = Path(temp_dir) / "test_cache"
-        monkeypatch.setattr(
-            "spelling_words.cache_manager.CacheManager.CACHE_NAME", str(cache_path)
-        )
+        monkeypatch.setattr("spelling_words.cache_manager.CacheManager.CACHE_NAME", str(cache_path))
         yield temp_dir
 
 
