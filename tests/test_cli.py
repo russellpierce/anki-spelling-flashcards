@@ -40,7 +40,7 @@ class TestDeckNameOption:
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
             result = runner.invoke(
-                main,
+                generate,
                 [
                     "-w",
                     str(word_file),
@@ -61,7 +61,7 @@ class TestDeckNameOption:
 
         runner = CliRunner()
         result = runner.invoke(
-            main,
+            generate,
             [
                 "-w",
                 str(word_file),
@@ -82,7 +82,7 @@ class TestDeckNameOption:
 
         runner = CliRunner()
         result = runner.invoke(
-            main,
+            generate,
             [
                 "-w",
                 str(word_file),
@@ -152,7 +152,7 @@ class TestUpdateWorkflow:
                     b"mp3",
                 )
                 result = runner.invoke(
-                    main,
+                    generate,
                     [
                         "-w",
                         str(update_word_file),
@@ -219,7 +219,7 @@ class TestCLIBasics:
             # Mock the deck to have at least one note
             mock_apkg.return_value.deck.notes = [Mock()]
             result = runner.invoke(
-                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+                generate, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
             )
             # Should succeed
             assert result.exit_code == 0
@@ -387,7 +387,7 @@ class TestCLIWorkflow:
             mock_apkg.return_value.deck.notes = [Mock()]
 
             result = runner.invoke(
-                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+                generate, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
             )
 
             assert result.exit_code == 0
@@ -417,7 +417,7 @@ class TestCLIWorkflow:
             mock_client.return_value.get_word_data.return_value = None
 
             runner.invoke(
-                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+                generate, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
             )
 
             # Should complete but show warning/skip
@@ -452,7 +452,7 @@ class TestCLIWorkflow:
             mock_audio.return_value.download_audio.return_value = None
 
             runner.invoke(
-                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+                generate, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
             )
 
             # Should skip word without audio
@@ -745,7 +745,7 @@ class TestMissingWordsFile:
             ]
 
             result = runner.invoke(
-                main, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
+                generate, ["-w", str(word_file), "-o", str(output_file), "--deck-name", "Test Deck"]
             )
             assert result.exit_code == 0
 
