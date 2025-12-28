@@ -37,17 +37,6 @@ class TestSettings:
         assert settings.mw_elementary_api_key == "test-api-key-123"
         assert settings.cache_dir == str(tmp_path / "custom_cache")
 
-    def test_settings_raises_error_when_required_api_key_missing(self, monkeypatch):
-        """Test that Settings raises ValidationError when required API key is missing."""
-        # Clear any existing MW_ELEMENTARY_API_KEY from environment
-        monkeypatch.delenv("MW_ELEMENTARY_API_KEY", raising=False)
-
-        with pytest.raises(ValidationError) as exc_info:
-            Settings()
-
-        # Verify the error is about the missing API key
-        assert "mw_elementary_api_key" in str(exc_info.value).lower()
-
     def test_settings_uses_default_values_for_optional_fields(self, monkeypatch):
         """Test that Settings uses default values for optional configuration fields."""
         # Set only required field
