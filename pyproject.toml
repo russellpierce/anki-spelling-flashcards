@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-spelling-words = "spelling_words.cli:main"
+spelling-words = "spelling_words.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -140,4 +140,5 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "pytest-cov>=7.0.0",
+    "requests-mock>=1.12.1",
 ]

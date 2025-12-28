@@ -14,6 +14,7 @@ from rich.progress import track
 
 from spelling_words.apkg_manager import APKGBuilder, APKGReader
 from spelling_words.audio_processor import AudioProcessor
+from spelling_words.cache_manager import CacheManager
 from spelling_words.config import Settings, get_settings
 from spelling_words.dictionary_client import (
     MerriamWebsterClient,
@@ -110,7 +111,12 @@ def load_word_list(word_manager: WordListManager, words_file: Path) -> list[str]
         raise click.Abort from e
 
 
-@click.command()
+@click.group()
+def cli() -> None:
+    """Spelling Words - Generate Anki flashcards for spelling practice."""
+
+
+@cli.command()
 @click.option(
     "--words",
     "-w",
@@ -150,7 +156,7 @@ def load_word_list(word_manager: WordListManager, words_file: Path) -> list[str]
     help="Enable debug logging",
 )
 @click.pass_context
-def main(
+def generate(
     ctx: click.Context,
     words_file: Path | None,
     output_file: Path,
@@ -386,5 +392,56 @@ def process_words(
     return missing_words
 
 
+@cli.command()
+@click.argument("word")
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Enable debug logging",
+)
+def bust_cache(word: str, verbose: bool) -> None:
+    """Remove cached data for a specific word.
+
+    This clears all cached HTTP responses related to the word, including:
+    - Dictionary API lookups (elementary and collegiate)
+    - Audio download URLs
+
+    Use this when you want to force fresh data retrieval for a word.
+
+    Example:
+        spelling-words bust-cache apple
+    """
+    # Configure logging level
+    if verbose:
+        configure_verbose_logging()
+    else:
+        configure_quiet_logging()
+
+    # Create cache manager
+    cache_manager = CacheManager()
+
+    # Bust cache for the word
+    console.print(f"Busting cache for word: [cyan]{word}[/cyan]")
+
+    try:
+        deleted_count = cache_manager.bust_word_cache(word)
+
+        if deleted_count > 0:
+            console.print(
+                f"[green]✓ Successfully deleted {deleted_count} cache entries for '{word}'[/green]"
+            )
+        else:
+            console.print(f"[yellow]No cache entries found for '{word}'[/yellow]")
+
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise click.Abort from e
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] Failed to bust cache: {e}")
+        logger.exception("Cache busting failed")
+        raise click.Abort from e
+
+
 if __name__ == "__main__":
-    main()
+    cli()
